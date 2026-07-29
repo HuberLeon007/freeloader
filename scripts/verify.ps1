@@ -26,7 +26,8 @@ if (-not (Get-Command link.exe -ErrorAction SilentlyContinue)) {
 }
 if (-not (Get-Command link.exe -ErrorAction SilentlyContinue)) { throw "MSVC link.exe is unavailable. Install Visual Studio 2022 Build Tools with Desktop development with C++ and the Windows 10/11 SDK, then rerun from Developer PowerShell." }
 
-cargo fmt --all --check
+# Local verification fixes formatting; CI remains strict with --check.
+cargo fmt --all
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 cargo clippy --workspace --all-targets -- -D warnings
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -38,14 +39,17 @@ if (-not $SkipFrontend) {
     $pnpmCommand = "pnpm"
   } else {
     Require-Command corepack "Install Node.js 22 LTS, then enable Corepack."
-    corepack enable
-    $pnpmCommand = "corepack"
+    $corepackDir = Join-Path $env:APPDATA "Corepack"
+    New-Item -ItemType Directory -Force -Path $corepackDir | Out-Null
+    corepack enable --install-directory $corepackDir
+    $env:Path = "$corepackDir;$env:Path"
+    $pnpmCommand = "pnpm"
   }
-  if ($pnpmCommand -eq "pnpm") { & pnpm install --frozen-lockfile=false } else { & corepack pnpm install --frozen-lockfile=false }
+  & $pnpmCommand install --frozen-lockfile=false
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  if ($pnpmCommand -eq "pnpm") { & pnpm --dir apps/desktop typecheck } else { & corepack pnpm --dir apps/desktop typecheck }
+  & $pnpmCommand --dir apps/desktop typecheck
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  if ($pnpmCommand -eq "pnpm") { & pnpm --dir apps/desktop build } else { & corepack pnpm --dir apps/desktop build }
+  & $pnpmCommand --dir apps/desktop build
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
