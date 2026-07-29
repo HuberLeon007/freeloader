@@ -2,98 +2,71 @@
 
 **A fast, private, local-first download manager for Windows and Linux.**
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+Freeloader is a GPL-3.0-or-later desktop download manager built with Rust, Tauri v2 and React. It has no account, cloud, advertisements, telemetry, tracking or shipped local HTTP server. Downloads are streamed directly to local `.part` files and atomically renamed after completion.
 
-Freeloader is a desktop download manager built with Tauri v2, Rust and React. It runs entirely on your machine: no account, no login, no cloud, no subscription, no ads, no telemetry, no tracking, no background web server. The only network traffic Freeloader produces is the downloads you ask for, plus an explicitly opt-in update check.
+> **Current status:** early development. The repository now contains the Rust protocol, SQLite-backed streaming core, Tauri adapter, React GUI, first-run onboarding, Native Messaging foundations, browser extension packages and release workflow foundations. Treat target-platform artifacts as unverified until the matching CI job is green.
 
-> Status: **pre-alpha / scaffolding.** The repository is being bootstrapped. Nothing here is production-ready yet.
+## Clone and build
 
----
+### Windows x64
 
-## Why
-
-Most download managers are either abandoned, bundled with adware, wrapped around a local HTTP server, or a 200 MB Electron shell. Freeloader aims to be the opposite: a small native-feeling binary, a calm and precise UI, a Rust core that streams bytes to disk reliably, and browser integration over OS-level Native Messaging instead of a localhost port.
-
-## Design principles
-
-1. **Local-first.** All state lives in SQLite inside the local application data directory.
-2. **No hidden network surface.** No localhost HTTP server, no WebSocket bridge, no relay, no telemetry.
-3. **Least privilege.** Browser extensions request only the permissions they can justify in writing.
-4. **Untrusted input by default.** URLs, filenames, headers and referrers are validated and sanitised before they touch the filesystem.
-5. **Efficient.** Streaming I/O, bounded memory, throttled IPC, a virtualised UI, and a release profile tuned for a small binary.
-6. **Native feel.** Keyboard-first, WCAG 2.2 AA oriented contrast and focus states, full dark and light themes following the system preference.
-
-## Planned architecture
-
-```
-freeloader/
-  apps/desktop/           # Tauri v2 shell: React + TypeScript + Vite frontend
-  crates/download-core/   # Download engine, state machine, persistence (Rust, no Tauri dependency)
-  crates/native-host/     # Native Messaging host / launcher (Rust)
-  crates/protocol/        # Versioned message contract shared by app, host and extensions
-  extensions/chromium/    # Manifest V3 extension (Chrome, Edge, Brave, Vivaldi, Opera)
-  extensions/firefox/     # Firefox WebExtension
-  scripts/                # Native-messaging host registration for Windows and Linux
-  docs/                   # Architecture, ADRs, security model, release process
+```powershell
+git clone https://github.com/HuberLeon007/freeloader.git
+cd freeloader
+rustup toolchain install stable
+corepack enable
+pnpm install
+cargo test --workspace
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+pnpm --dir apps/desktop typecheck
+pnpm --dir apps/desktop build
+cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target x86_64-pc-windows-msvc --bundles nsis
 ```
 
-**Layering rule:** the frontend renders and dispatches intent, nothing more. The Rust core owns networking, the filesystem, the database and all download state. Large files never pass through the webview.
+### Windows ARM64
 
-## Tech stack
+Install Visual Studio 2022 Desktop development with C++, the MSVC ARM64/ARM64EC tools and the Windows 11 SDK first, then run:
 
-| Layer | Choice |
-| --- | --- |
-| Shell | Tauri v2 |
-| Core | Rust (stable), Tokio, reqwest with rustls, sqlx + SQLite |
-| Observability | tracing / tracing-subscriber, local rotating log files |
-| Errors | thiserror in libraries, anyhow at the binary boundary |
-| Frontend | React 19, TypeScript (strict), Vite, TanStack Router, Zustand |
-| Styling | Tailwind CSS v4 design tokens, selected shadcn/ui primitives, Lucide icons |
-| Motion | CSS transitions by default; Motion (LazyMotion) only for layout and exit animations |
-| Forms | React Hook Form + Zod |
-| Browser bridge | Native Messaging over stdio, no network sockets |
+```powershell
+rustup target add aarch64-pc-windows-msvc
+pnpm install
+cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target aarch64-pc-windows-msvc --bundles nsis
+```
 
-## Feature scope (MVP)
+### Linux
 
-- Add downloads by URL with pre-flight probing: size, content type, suggested filename, resume capability
-- Queue with a configurable concurrency limit
-- Start, pause, resume, cancel, retry with exponential backoff
-- HTTP Range based resume when (and only when) the server supports it
-- Streaming writes to `.part` files, atomic rename on completion
-- Filename sanitisation and explicit conflict resolution (rename / overwrite / cancel)
-- Persistent queue that survives restarts and offers resumption of interrupted downloads
-- Categories, search, filtering and sorting
-- Guided installer and a first-run setup flow that detects installed browsers
-- Browser extensions: context-menu capture and explicit page-link detection, never silent request interception
+Install WebKitGTK 4.1 and GTK development packages for your distribution before running:
 
-Explicitly **out of scope**: DRM circumvention, paywall bypass, streaming-site rippers, credential or cookie harvesting.
+```bash
+git clone https://github.com/HuberLeon007/freeloader.git
+cd freeloader
+pnpm install
+cargo test --workspace
+pnpm --dir apps/desktop typecheck
+pnpm --dir apps/desktop build
+cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target x86_64-unknown-linux-gnu --bundles deb,rpm,appimage
+```
 
-## Platform support
+Linux ARM64 packages require a native ARM64 runner or a fully configured cross-compilation toolchain:
 
-| Platform | Architecture | Status |
-| --- | --- | --- |
-| Windows 10 / 11 | x86_64 | Primary target |
-| Windows 11 | ARM64 (aarch64) | Primary target, NSIS installer only |
-| Linux (Debian / Ubuntu / Fedora based) | x86_64 | Primary target |
-| Linux | ARM64 (aarch64) | Primary target |
-| macOS | - | Not supported and not planned for now |
-| Android | - | Long-term; the core engine is reusable, the UI and OS integration are not |
+```bash
+rustup target add aarch64-unknown-linux-gnu
+cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target aarch64-unknown-linux-gnu --bundles deb,rpm
+```
 
-## Licence
+## Development
 
-Freeloader is free software licensed under the **[GNU General Public License v3.0 or later](LICENSE)** (`GPL-3.0-or-later`), an OSI-approved open source licence.
+```bash
+pnpm --dir apps/desktop dev
+```
 
-In plain terms:
+For the native desktop shell, use `cargo tauri dev` after installing the current Tauri CLI. The production binary never starts an HTTP server. Test fixtures may use local servers only inside test processes.
 
-- You may use, study, run, copy, modify, fork and redistribute this software freely, including commercially.
-- You **must** preserve the copyright notices and attribution to the original project.
-- If you distribute a modified version, you **must** release its complete corresponding source code under the same GPL-3.0-or-later terms. Closed-source forks are not permitted.
-- Modified versions must be marked as changed so problems are not misattributed to the original authors.
+## Browser extensions
 
-That is the point of the choice: the project stays open, and anything built on it stays open too.
+Firefox and Edge may use their official stores after publication. Chromium browsers use the GitHub Releases ZIP only: download, extract to a stable directory, enable Developer Mode, select **Load unpacked**, and register the exact extension ID in the Native Messaging host manifest. The Chrome Web Store is intentionally not used.
 
-Contributions are accepted under the same licence, certified via the [Developer Certificate of Origin](https://developercertificate.org/) (`git commit -s`). No copyright assignment is requested.
+## License
 
-## Trademarks and references
-
-Freeloader is an independent project. It is not affiliated with, endorsed by, or derived from the source code, branding or assets of any other download manager.
+Freeloader is free software under the [GNU GPL-3.0-or-later](LICENSE). Distributed modified versions must preserve attribution, remain under GPL-3.0-or-later and provide corresponding source. See [development.md](docs/development.md) and [extensions.md](docs/extensions.md).
