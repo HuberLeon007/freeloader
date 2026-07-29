@@ -1,0 +1,13 @@
+[package]
+name = "freeloader-download-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+proptest = "1.6"
