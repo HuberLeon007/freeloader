@@ -1,0 +1,20 @@
+[package]
+name = "freeloader-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1"
+freeloader-download-core = { path = "../../../crates/download-core" }
+freeloader-platform = { path = "../../../crates/platform" }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-store = "2"
