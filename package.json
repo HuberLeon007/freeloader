@@ -1,0 +1,12 @@
+{
+  "name": "freeloader-workspace",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "lint": "pnpm --if-present -r lint",
+    "typecheck": "pnpm --if-present -r typecheck",
+    "test": "pnpm --if-present -r test",
+    "build": "pnpm --if-present -r build"
+  }
+}
