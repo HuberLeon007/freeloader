@@ -1,0 +1,134 @@
+# ---------------------------------------------------------------------------
+# Rust / Cargo
+# ---------------------------------------------------------------------------
+target/
+**/target/
+*.pdb
+*.rlib
+*.rmeta
+*.orig
+*.profraw
+*.profdata
+# Cargo.lock IS committed: this workspace produces binaries, not libraries.
+
+# ---------------------------------------------------------------------------
+# Tauri
+# ---------------------------------------------------------------------------
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/WixTools/
+apps/desktop/src-tauri/.tauri/
+*.msi
+*.msi.zip
+*.nsis.zip
+*.exe.sig
+*.msi.sig
+
+# Tauri updater / code signing material must never be committed.
+*.pem
+*.key
+*.pfx
+*.p12
+tauri.conf.local.json
+
+# ---------------------------------------------------------------------------
+# Node / frontend
+# ---------------------------------------------------------------------------
+node_modules/
+.pnpm-store/
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/versions
+dist/
+dist-ssr/
+build/
+.vite/
+.turbo/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+stats.html
+
+# Test and coverage output
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.vitest/
+
+# ---------------------------------------------------------------------------
+# Browser extension build artefacts
+# ---------------------------------------------------------------------------
+extensions/*/dist/
+extensions/*/build/
+extensions/*/web-ext-artifacts/
+*.crx
+*.xpi
+*.zip
+!docs/**/*.zip
+
+# ---------------------------------------------------------------------------
+# Environment and secrets
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+secrets.json
+*.secret
+
+# ---------------------------------------------------------------------------
+# Local application data produced while developing
+# ---------------------------------------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.part
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Editors and IDEs
+# ---------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.history/
+.zed/
+
+# ---------------------------------------------------------------------------
+# Operating systems
+# ---------------------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Trash-*
+
+# ---------------------------------------------------------------------------
+# Miscellaneous
+# ---------------------------------------------------------------------------
+.cache/
+tmp/
+temp/
+*.bak
+*.tmp
