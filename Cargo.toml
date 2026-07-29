@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/protocol",
+  "crates/download-core",
+  "crates/native-host",
+  "crates/platform",
+]
+
+[workspace.package]
+edition = "2021"
+license = "GPL-3.0-or-later"
+version = "0.1.0"
+authors = ["Leon Erwin Huber"]
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = "s"
+panic = "abort"
+strip = true
