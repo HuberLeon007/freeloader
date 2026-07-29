@@ -1,0 +1,19 @@
+[package]
+name = "freeloader-native-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+freeloader-protocol = { path = "../protocol" }
+serde_json = "=1.0.128"
+thiserror = "=2.0.11"
+
+[lib]
+name = "freeloader_native_host"
+path = "src/lib.rs"
+
+[[bin]]
+name = "freeloader-native-host"
+path = "src/main.rs"

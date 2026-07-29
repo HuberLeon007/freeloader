@@ -1,15 +1,11 @@
 [package]
-name = "freeloader-protocol"
+name = "freeloader-platform"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
 
 [dependencies]
+dirs = "=5.0.1"
 serde = { version = "=1.0.210", features = ["derive"] }
-serde_json = "=1.0.128"
 thiserror = "=2.0.11"
-url = "=2.5.2"
-
-[dev-dependencies]
-proptest = "=1.5.0"
