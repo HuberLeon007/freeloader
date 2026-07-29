@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    strategy:
+      matrix:
+        include:
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: ${{ matrix.target }} }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.12.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --dir apps/desktop build
+      - run: cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target ${{ matrix.target }} --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with: { name: windows-${{ matrix.target }}, path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/* }
+
+  linux:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,rpm,appimage
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            bundles: deb,rpm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: ${{ matrix.target }} }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.12.1 }
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --dir apps/desktop build
+      - run: cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - uses: actions/upload-artifact@v4
+        with: { name: linux-${{ matrix.target }}, path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/* }
