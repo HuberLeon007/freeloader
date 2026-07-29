@@ -40,8 +40,9 @@ if (-not $SkipFrontend) {
   } else {
     Require-Command corepack "Install Node.js 22 LTS, then enable Corepack."
     $corepackDir = Join-Path $env:APPDATA "Corepack"
-    New-Item -ItemType Directory -Force -Path $corepackDir | Out-Null
+    if (-not (Test-Path -LiteralPath $corepackDir)) { New-Item -ItemType Directory -Force -Path $corepackDir | Out-Null }
     corepack enable --install-directory $corepackDir
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $env:Path = "$corepackDir;$env:Path"
     $pnpmCommand = "pnpm"
   }
