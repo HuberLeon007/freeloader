@@ -1,0 +1,7 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -eu
+if command -v freeloader-native-host >/dev/null 2>&1 && [ -x /usr/share/freeloader/install-native-host.sh ]; then
+  FREELOADER_NATIVE_HOST_BINARY="$(command -v freeloader-native-host)" /usr/share/freeloader/install-native-host.sh || true
+fi
+exit 0
