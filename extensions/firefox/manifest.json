@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Freeloader",
+  "version": "0.1.0",
+  "description": "Send explicit HTTP(S) download links to Freeloader.",
+  "permissions": ["contextMenus", "nativeMessaging", "activeTab", "scripting", "storage"],
+  "background": {"scripts": ["background.js"]},
+  "action": {"default_title": "Freeloader", "default_popup": "popup.html"},
+  "browser_specific_settings": {"gecko": {"id": "freeloader@example.org", "strict_min_version": "128.0"}},
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'self'"}
+}
