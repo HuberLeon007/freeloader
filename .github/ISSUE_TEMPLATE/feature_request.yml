@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Feature request
+description: Propose a capability that Freeloader does not have yet.
+title: "feat: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two lists are worth checking first. [docs/implementation-status.md](https://github.com/HuberLeon007/freeloader/blob/main/docs/implementation-status.md) names what is already deferred to a later spec, and the out-of-scope list below is permanent.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: This is not DRM circumvention, paywall or login-wall bypass, streaming-site extraction, YouTube ripping, or macOS support.
+          required: true
+        - label: I checked docs/implementation-status.md and this is not already listed as deferred.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and where does Freeloader get in the way today? Describe the situation, not the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What behaviour would solve it? Be concrete about what the user does and what they see.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Download engine (crates/download-core)
+        - Tauri adapter (apps/desktop/src-tauri)
+        - Frontend (apps/desktop/src)
+        - Native messaging host (crates/native-host)
+        - Browser extension (extensions/)
+        - Installer or packaging
+        - Build, CI or tooling
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, and why they are not enough.
+    validations:
+      required: false
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: How would it be verified?
+      description: How could a test show the feature works? A feature without an executable check is hard to keep working.
+    validations:
+      required: false
