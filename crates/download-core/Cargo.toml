@@ -18,7 +18,7 @@ futures-util = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 time = { workspace = true }
-ts-rs = { version = "10", optional = true }
+ts-rs = { version = "12", optional = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
