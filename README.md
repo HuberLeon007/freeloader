@@ -15,17 +15,20 @@ Freeloader is a desktop download manager built with Tauri v2, Rust and React. It
 ```bash
 git clone https://github.com/HuberLeon007/freeloader.git
 cd freeloader
-pnpm install
-pnpm --dir apps/desktop app:dev
+cargo dev
 ```
 
-That is the whole loop. `app:dev` runs the Tauri CLI, which builds the Rust core, starts Vite on port 1420 and opens the desktop window. Application icons are generated on the fly by `scripts/generate-icons.mjs`, so nothing binary needs to be checked in.
+That is the whole loop. `cargo dev` installs the Node side if it is missing, generates the application icons, builds the Rust core and opens the desktop window. The first build takes a few minutes; after that it is incremental.
 
-To produce installers locally:
+Other tasks:
 
 ```bash
-pnpm --dir apps/desktop app:build
+cargo xtask build    # installers for the current platform
+cargo xtask check    # the same four gates CI runs
+cargo xtask icons    # regenerate the bundle icons
 ```
+
+If you would rather drive pnpm yourself, `pnpm install && pnpm --dir apps/desktop app:dev` does the same thing.
 
 ### Prerequisites
 
@@ -35,6 +38,17 @@ pnpm --dir apps/desktop app:build
 | Node 22 + pnpm 10 | `corepack enable` is enough |
 | Windows | Microsoft Visual Studio C++ Build Tools, WebView2 (preinstalled on Windows 11) |
 | Linux | `libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf` |
+
+## First run
+
+Setup asks four questions and stores the answers on this machine only:
+
+1. What Freeloader is, and what it deliberately does not do
+2. Where files land: pick from OS-resolved suggestions or the native folder picker, with the target checked for existence and write access before you continue
+3. Appearance: system, dark or light
+4. Browser handoff: optional detection of browsers on your PATH
+
+Every answer is changeable later in Settings. `Esc` skips the whole thing.
 
 ## Repository layout
 
@@ -48,6 +62,7 @@ freeloader/
   crates/native-host/     # Native Messaging host / launcher
   extensions/             # Chromium (MV3) and Firefox WebExtensions
   scripts/                # Icon generation and native-messaging host registration
+  xtask/                  # Repository automation behind `cargo dev`
   docs/                   # Architecture, ADRs, security model, release process
 ```
 
@@ -79,9 +94,9 @@ freeloader/
 | Shortcut | Action |
 | --- | --- |
 | `Ctrl` / `Cmd` + `N` | Focus the URL field |
-| `Enter` | Start the download in the URL field |
+| `Enter` | Start the download in the URL field, or advance setup |
 | `/` | Focus the filter |
-| `Esc` | Close settings |
+| `Esc` | Close settings, or skip setup |
 
 ## Feature scope (MVP)
 
@@ -110,7 +125,7 @@ Explicitly **out of scope**: DRM circumvention, paywall bypass, streaming-site r
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs four independent jobs: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and the frontend typecheck plus build. They are split so a red badge tells you which one broke without opening a log.
+`.github/workflows/ci.yml` runs four independent jobs: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and the frontend typecheck plus build. They are split so a red badge tells you which one broke without opening a log. `cargo xtask check` runs the same four locally.
 
 `.github/workflows/autofix.yml` runs rustfmt on every non-main branch and pushes the result, so formatting is never a merge blocker.
 
