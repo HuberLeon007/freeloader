@@ -5,7 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Freeloader local-first download manager" />
     <title>Freeloader</title>
-    <link rel="stylesheet" href="/src/onboarding.css" />
+    <script>
+      // The onboarding UI changed after the previous completion marker was written.
+      // Clear only that legacy marker once, so existing installs see the new setup.
+      (function migrateOnboarding() {
+        var legacy = "freeloader.onboarding.v2";
+        var migration = "freeloader.onboarding.v3-migrated";
+        if (localStorage.getItem(legacy) === "done" && !localStorage.getItem(migration)) {
+          localStorage.removeItem(legacy);
+          localStorage.setItem(migration, "1");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
