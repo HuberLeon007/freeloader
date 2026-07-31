@@ -12,11 +12,18 @@ pub struct SystemClock {
 }
 
 impl SystemClock {
+    /// Start a clock whose monotonic origin is this moment.
     pub fn new() -> Self {
         Self {
             start: std::time::Instant::now(),
             offset_ms: AtomicU64::new(0),
         }
+    }
+}
+
+impl Default for SystemClock {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

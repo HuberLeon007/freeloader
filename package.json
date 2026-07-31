@@ -3,5 +3,12 @@
   "private": true,
   "license": "GPL-3.0-or-later",
   "packageManager": "pnpm@10.12.1",
-  "scripts": {"lint":"pnpm -r --if-present lint","typecheck":"pnpm -r --if-present typecheck","test":"pnpm -r --if-present test","build":"pnpm -r --if-present build"}
+  "scripts": {
+    "postinstall": "node scripts/generate-icons.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build"
+  }
 }

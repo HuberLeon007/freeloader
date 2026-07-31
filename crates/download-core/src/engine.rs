@@ -6,15 +6,14 @@
 
 use crate::containment;
 use crate::models::domain::Download;
-use crate::repository::SqliteRepository;
 use crate::seams::checksum::ChecksumVerifier;
 use crate::seams::clock::Clock;
 use crate::seams::filesystem::FileSystem;
 use crate::seams::http::HttpClient;
 use crate::seams::rate_limiter::RateLimiter;
-use crate::seams::repository::{DownloadRepository, RecordPatch};
-use crate::seams::strategy::{DownloadStrategy, TransferOutcome};
-use crate::{DownloadStatus, EngineError, Progress};
+use crate::seams::repository::DownloadRepository;
+use crate::seams::strategy::DownloadStrategy;
+use crate::{EngineError, Progress};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
@@ -22,12 +21,19 @@ use uuid::Uuid;
 
 /// All injectable dependencies for the engine.
 pub struct EngineDependencies {
+    /// Network boundary.
     pub http: Arc<dyn HttpClient>,
+    /// Persistence boundary.
     pub repository: Arc<dyn DownloadRepository>,
+    /// Disk boundary.
     pub file_system: Arc<dyn FileSystem>,
+    /// Time boundary.
     pub clock: Arc<dyn Clock>,
+    /// Bandwidth boundary.
     pub rate_limiter: Arc<dyn RateLimiter>,
+    /// Transfer execution boundary.
     pub strategy: Arc<dyn DownloadStrategy>,
+    /// Checksum verification boundary.
     pub checksums: Arc<dyn ChecksumVerifier>,
 }
 
@@ -79,7 +85,58 @@ impl DownloadEngine {
         }
     }
 
-    /// Create and persist a new download from a URL and destination path.
+    /// The tuning knobs this engine was constructed with.
+    pub fn settings(&self) -> &EngineSettings {
+        &self.settings
+    }
+
+    /// Register the cancellation token and progress channel of a transfer that
+    /// is about to start, so [`Self::cancel`] and [`Self::progress_of`] can
+    /// reach it.
+    pub async fn track(
+        &self,
+        id: Uuid,
+        cancel: tokio_util::sync::CancellationToken,
+        progress: watch::Sender<Progress>,
+    ) {
+        self.cancel_tokens.lock().await.insert(id, cancel);
+        self.progress_senders.lock().await.insert(id, progress);
+    }
+
+    /// Drop the tracking entries of a transfer that reached a terminal state.
+    pub async fn untrack(&self, id: Uuid) {
+        self.cancel_tokens.lock().await.remove(&id);
+        self.progress_senders.lock().await.remove(&id);
+    }
+
+    /// Signal a running transfer to stop.
+    ///
+    /// Returns `true` when the engine was tracking a token for `id`. The stop
+    /// is cooperative: the record reaches its terminal state through the usual
+    /// transition rather than being torn down here.
+    pub async fn cancel(&self, id: Uuid) -> bool {
+        let mut tokens = self.cancel_tokens.lock().await;
+        match tokens.remove(&id) {
+            Some(token) => {
+                token.cancel();
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Subscribe to progress for a transfer that is currently running.
+    pub async fn progress_of(&self, id: Uuid) -> Option<watch::Receiver<Progress>> {
+        let senders = self.progress_senders.lock().await;
+        senders.get(&id).map(watch::Sender::subscribe)
+    }
+
+    /// Create and persist a new download from a URL and destination directory.
+    ///
+    /// # Errors
+    /// Returns [`EngineError::InvalidUrl`] for anything that is not an absolute
+    /// `http` or `https` URL with a host, and a database error when the record
+    /// cannot be written.
     pub async fn create(
         &self,
         url_str: &str,
@@ -113,6 +170,9 @@ impl DownloadEngine {
     }
 
     /// List all downloads.
+    ///
+    /// # Errors
+    /// Returns a database error when the read fails.
     pub async fn list(&self) -> Result<Vec<Download>, EngineError> {
         self.deps
             .repository
@@ -122,6 +182,9 @@ impl DownloadEngine {
     }
 
     /// On startup: transition all running downloads to paused, return the list.
+    ///
+    /// # Errors
+    /// Returns a database error when the read fails.
     pub async fn recover_on_start(&self) -> Result<Vec<Download>, EngineError> {
         let now = self.deps.clock.now();
         let _ = self.deps.repository.quiesce_running(now).await;
@@ -129,6 +192,9 @@ impl DownloadEngine {
     }
 
     /// Get a single download by ID.
+    ///
+    /// # Errors
+    /// Returns a database error when the read fails.
     pub async fn get(&self, id: Uuid) -> Result<Option<Download>, EngineError> {
         self.deps
             .repository
@@ -138,6 +204,9 @@ impl DownloadEngine {
     }
 
     /// Remove a download record.
+    ///
+    /// # Errors
+    /// Returns a database error when the delete fails.
     pub async fn remove(&self, id: Uuid) -> Result<(), EngineError> {
         self.deps
             .repository
@@ -146,7 +215,7 @@ impl DownloadEngine {
             .map_err(|e| EngineError::Database(sqlx::Error::Protocol(e.to_string())))
     }
 
-    /// Expose the repository for direct access (used by Tauri adapter).
+    /// Expose the repository for direct access (used by the Tauri adapter).
     pub fn repository(&self) -> &Arc<dyn DownloadRepository> {
         &self.deps.repository
     }

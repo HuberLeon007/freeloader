@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "icons": "node ../../scripts/generate-icons.mjs",
+    "predev": "node ../../scripts/generate-icons.mjs",
     "dev": "vite",
     "prebuild": "node ../../scripts/generate-icons.mjs",
     "build": "tsc --noEmit && vite build",

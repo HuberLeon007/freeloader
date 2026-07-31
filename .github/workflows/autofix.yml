@@ -1,8 +1,8 @@
 name: Autofix
 
-# Formatting should never be a merge blocker. On any branch that is not main we
-# run the real rustfmt and push the result, so `cargo fmt --all --check`
-# in CI is always satisfiable without a human round trip.
+# Formatting and machine-applicable lints should never be a merge blocker. On
+# any branch that is not main we run the real rustfmt and clippy --fix and push
+# the result, so the CI gates are always satisfiable without a human round trip.
 
 on:
   push:
@@ -28,6 +28,9 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Install Linux desktop dependencies
         run: |
           sudo apt-get update
@@ -39,23 +42,27 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf
+      - name: Generate application icons
+        run: node scripts/generate-icons.mjs
+      - name: Apply machine-applicable clippy fixes
+        run: cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged || true
       - run: cargo fmt --all
       - name: Collect diagnostics
         run: |
           set +e
           mkdir -p .ci
-          cargo clippy --workspace --all-targets --message-format short > /tmp/clippy.txt 2>&1
+          cargo clippy --workspace --all-targets --message-format short -- -D warnings > /tmp/clippy.txt 2>&1
           echo "exit=$?" >> /tmp/clippy.txt
           cargo test --workspace > /tmp/test.txt 2>&1
           echo "exit=$?" >> /tmp/test.txt
           {
             echo '## clippy'
             echo '```'
-            tail -c 45000 /tmp/clippy.txt
+            grep -v -e 'Downloaded ' -e 'Compiling ' -e 'Checking ' /tmp/clippy.txt | tail -c 40000
             echo '```'
             echo '## test'
             echo '```'
-            tail -c 35000 /tmp/test.txt
+            grep -v -e 'Downloaded ' -e 'Compiling ' -e 'Checking ' /tmp/test.txt | tail -c 30000
             echo '```'
           } > .ci/diagnostics.md
       - name: Commit and push
@@ -67,5 +74,5 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: rustfmt and ci diagnostics"
+          git commit -m "chore: rustfmt, clippy autofix and ci diagnostics"
           git push origin HEAD:${{ github.ref_name }}

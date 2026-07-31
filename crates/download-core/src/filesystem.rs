@@ -11,8 +11,15 @@ use tokio::io::AsyncWriteExt;
 pub struct TokioFileSystem;
 
 impl TokioFileSystem {
+    /// Construct the adapter. It holds no state.
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for TokioFileSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

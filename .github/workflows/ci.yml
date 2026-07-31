@@ -35,6 +35,9 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Install Linux desktop dependencies
         run: |
           sudo apt-get update
@@ -46,6 +49,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf
+      - name: Generate application icons
+        run: node scripts/generate-icons.mjs
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   rust-test:
@@ -55,6 +60,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Install Linux desktop dependencies
         run: |
           sudo apt-get update
@@ -66,6 +74,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf
+      - name: Generate application icons
+        run: node scripts/generate-icons.mjs
       - run: cargo test --workspace
 
   frontend:

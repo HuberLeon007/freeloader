@@ -15,13 +15,18 @@ use url::Url;
 /// Production HTTP client using `reqwest` with TLS via `rustls`.
 pub struct ReqwestHttpClient {
     inner: reqwest::Client,
-    connect_timeout: Duration,
-    idle_timeout: Duration,
-    max_redirects: u8,
 }
 
 impl ReqwestHttpClient {
-    /// Build a new client with the given timeouts and redirect limit.
+    /// Build a new client.
+    ///
+    /// `connect_timeout` bounds the TCP and TLS handshake, `idle_timeout`
+    /// bounds how long a pooled connection may sit unused, and `max_redirects`
+    /// caps the redirect chain.
+    ///
+    /// # Errors
+    /// Returns [`TransportError::Connection`] when the TLS backend cannot be
+    /// initialised.
     pub fn new(
         connect_timeout: Duration,
         idle_timeout: Duration,
@@ -29,16 +34,14 @@ impl ReqwestHttpClient {
     ) -> Result<Self, TransportError> {
         let inner = reqwest::Client::builder()
             .connect_timeout(connect_timeout)
-            .redirect(reqwest::redirect::Policy::limited(max_redirects as usize))
+            .pool_idle_timeout(idle_timeout)
+            .redirect(reqwest::redirect::Policy::limited(usize::from(
+                max_redirects,
+            )))
             .no_proxy()
             .build()
             .map_err(|e| TransportError::Connection(e.to_string()))?;
-        Ok(Self {
-            inner,
-            connect_timeout,
-            idle_timeout,
-            max_redirects,
-        })
+        Ok(Self { inner })
     }
 
     /// Validate the URL scheme before any request.
@@ -182,7 +185,6 @@ impl HttpClient for ReqwestHttpClient {
         let final_url = response.url().clone();
         let head = Self::extract_head(final_url, &response);
 
-        // Wrap stream with idle timeout.
         let stream = response.bytes_stream();
 
         let mapped = stream.map(|result| {
