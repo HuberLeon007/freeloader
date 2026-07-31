@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Bug report
+description: Something behaves differently than documented or expected.
+title: "fix: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security vulnerabilities here. Use the private channel described in [SECURITY.md](https://github.com/HuberLeon007/freeloader/blob/main/SECURITY.md).
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+        - label: This is not a request for DRM circumvention or for bypassing a paywall or login wall.
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Where does the problem appear? Pick the closest match.
+      options:
+        - Download engine (crates/download-core)
+        - Tauri adapter (apps/desktop/src-tauri)
+        - Frontend (apps/desktop/src)
+        - Native messaging host (crates/native-host)
+        - Browser extension (extensions/)
+        - Installer or packaging
+        - Build, CI or tooling
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release version, or the short commit hash of the build you ran.
+      placeholder: 0.1.0, or fa45b9f
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows 11 x64
+        - Windows 11 ARM64
+        - Windows 10 x64
+        - Linux x64
+        - Linux ARM64
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Distribution and browser
+      description: Linux distribution and version if applicable, plus the browser and version if the extension is involved.
+      placeholder: Ubuntu 24.04, Firefox 133
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, starting from a fresh launch. Include the URL only if it is publicly reachable and safe to share.
+      placeholder: |
+        1. Start Freeloader and skip onboarding.
+        2. Add https://example.org/file.bin
+        3. Pause after roughly 2 MB.
+        4. Close the application and start it again.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: What happened instead. Include the exact error text if there is one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant log output. Remove anything you do not want to publish; logs are local and redact query strings, but check before pasting.
+      render: text
+    validations:
+      required: false

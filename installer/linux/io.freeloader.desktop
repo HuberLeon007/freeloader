@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Freeloader
+Comment=Private local-first download manager
+Exec=freeloader %U
+Icon=freeloader
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;Utility;
+MimeType=x-scheme-handler/http;x-scheme-handler/https;
+StartupWMClass=freeloader

@@ -1,0 +1,27 @@
+# Code owners for Freeloader.
+# Later rules win, so the general rule comes first and the specific ones follow.
+# Copyright (C) Leon Erwin Huber. Licensed under GPL-3.0-or-later.
+
+* @HuberLeon007
+
+# Wire contract, validation and filename sanitisation. Load-bearing for every
+# other layer; changes here need the owner's review.
+/crates/protocol/ @HuberLeon007
+
+# Portable download logic, including resume and persistence.
+/crates/download-core/ @HuberLeon007
+
+# Operating-system boundaries and native messaging.
+/crates/platform/ @HuberLeon007
+/crates/native-host/ @HuberLeon007
+
+# Security-relevant configuration and policy.
+/SECURITY.md @HuberLeon007
+/deny.toml @HuberLeon007
+/docs/adr/ @HuberLeon007
+/docs/security-model.md @HuberLeon007
+
+# Build, release and installation.
+/.github/ @HuberLeon007
+/installer/ @HuberLeon007
+/scripts/ @HuberLeon007

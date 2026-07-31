@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "rust"]
+    # prefix plus `include: scope` yields "chore(deps): …" and
+    # "chore(deps-dev): …", which satisfies Conventional Commits.
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: scope
+    groups:
+      rust-patch-and-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: npm
+    directory: "/apps/desktop"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "frontend"]
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: scope
+    groups:
+      frontend-patch-and-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore"
+      include: scope

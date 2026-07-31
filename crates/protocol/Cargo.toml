@@ -1,0 +1,22 @@
+[package]
+name = "freeloader-protocol"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Wire contract and shared validation for Freeloader"
+publish = false
+
+[lints.rust]
+missing_docs = "warn"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }
+proptest = { workspace = true }

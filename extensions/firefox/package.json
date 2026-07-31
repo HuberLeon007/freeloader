@@ -1,0 +1,8 @@
+{
+  "name": "freeloader-extension-firefox",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "description": "Firefox extension that hands explicit HTTP(S) links to the Freeloader native host.",
+  "type": "module"
+}

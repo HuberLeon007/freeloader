@@ -1,0 +1,8 @@
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
+
+# Cross-compilation targets are installed per job by .github/workflows/release.yml.
+# Pinning them here would force every contributor and every CI job to download
+# four standard libraries before a single check can run.

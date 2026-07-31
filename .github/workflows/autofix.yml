@@ -1,0 +1,60 @@
+name: Autofix
+
+# Formatting and machine-applicable lints should never be a merge blocker. On
+# any branch that is not main we run the real rustfmt and clippy --fix and push
+# the result, so the CI gates are always satisfiable without a human round trip.
+
+on:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autofix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rustfmt:
+    name: cargo fmt
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+      - name: Generate application icons
+        run: node scripts/generate-icons.mjs
+      - name: Apply machine-applicable clippy fixes
+        run: cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged || true
+      - run: cargo fmt --all
+      - name: Commit and push
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to push."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style: rustfmt and clippy autofix"
+          git push origin HEAD:${{ github.ref_name }}

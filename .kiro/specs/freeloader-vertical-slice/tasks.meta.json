@@ -1,0 +1,375 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "Task 1: Repository bereinigen und Projektdateien vervollständigen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537313
+      },
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432549783
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873625
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433879099
+      }
+    ],
+    "Task 2: Spezifikationskonsistenz sicherstellen und Rückverfolgbarkeit anlegen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537345
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873663
+      }
+    ],
+    "Task 3: `download-core` als prüfbares Gerüst mit Datenbankschicht aufsetzen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537388
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873690
+      }
+    ],
+    "Task 4: Row_Model, Domain_Model, Dto_Model und generierte Typen bauen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537414
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873717
+      }
+    ],
+    "Task 5: Download_Repository und Zustandsmaschine implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537437
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873753
+      }
+    ],
+    "Task 6: Trait-Nähte, Fakes und verschobene Nähte bereitstellen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537461
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873780
+      }
+    ],
+    "Task 7: Pfad-Containment und Zielnamenswahl implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537483
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873807
+      }
+    ],
+    "Task 8: Dateinamen ausschließlich an das Protocol_Crate delegieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537506
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873833
+      }
+    ],
+    "Task 9: HttpClient mit Schema-Schranke, Weiterleitungen, Zeitgrenzen und Wiederholpolitik bauen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537528
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873862
+      }
+    ],
+    "Task 10: Metadaten-Vorabprüfung und Namensvorrangkette implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537550
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873888
+      }
+    ],
+    "Task 11: Einzelstrom-Transfer mit Part_File, Fortschrittstakt und Flushed_Offset.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537573
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873916
+      }
+    ],
+    "Task 12: Pausieren mit Abbruch-Token und Schreibstopp implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537597
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873942
+      }
+    ],
+    "Task 13: Fortsetzen in laufender Sitzung implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537619
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433873973
+      }
+    ],
+    "Task 14: Fortsetzungsalgorithmus für alle Neustartzweige implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537644
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874007
+      }
+    ],
+    "Task 15: Startbereinigung und Wiederherstellung implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537666
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874030
+      }
+    ],
+    "Task 16: Fixture-Server und Akzeptanzpfad-Integrationstest mit Neustart.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537700
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874057
+      }
+    ],
+    "Task 17: Download_Queue mit Parallelitätslimit implementieren.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537724
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874083
+      }
+    ],
+    "Task 18: Durchsetzungsschienen und Lieferkettenprüfungen einziehen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537747
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874110
+      }
+    ],
+    "Task 19: Tauri_Adapter als dünne Schicht bauen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537771
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874136
+      }
+    ],
+    "Task 20: Frontend-Gerüst mit Store, Schemagrenze und Testlauf.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537793
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874163
+      }
+    ],
+    "Task 21: Mock_Ipc und Laufzeiterkennung für die Entwicklervorschau.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537816
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874189
+      }
+    ],
+    "Task 22: Fake_Engine und Dev_Gallery bauen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537838
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874221
+      }
+    ],
+    "Task 23: Token_Layer, Kontrastpaarung und Accessibility_Gate einführen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537862
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874255
+      }
+    ],
+    "Task 24: Lokalisierung mit `i18next` einrichten.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537886
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874280
+      }
+    ],
+    "Task 25: Downloadliste und Statusdarstellung als Komponentenmodule bauen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537912
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874307
+      }
+    ],
+    "Task 26: Modalen Dialog mit Fokusführung fertigstellen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537935
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874332
+      }
+    ],
+    "Task 27: Platform_Crate, Host_Manifest und Build_Key_Step umsetzen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537957
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874360
+      }
+    ],
+    "Task 28: Native_Host mit Rahmenverarbeitung und Auftragsübergabe bauen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432537980
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874386
+      }
+    ],
+    "Task 29: Datenschutz-Invarianten, Update_Check_Setting und lokale Protokollierung verdrahten.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432538002
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874413
+      }
+    ],
+    "Task 30: Installer, Packaging, First_Run_Assistant und Manual_Checklist abschließen.": [
+      {
+        "executionId": "375f8f09-4eec-41e6-8507-6a419872706c",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785432538025
+      },
+      {
+        "executionId": "78656296-bbdb-40de-a3c7-cecfe32b90b7",
+        "chatSessionId": "sess_0e284916-25b2-4ea1-8359-df2db234bed7",
+        "timestamp": 1785433874440
+      }
+    ]
+  }
+}

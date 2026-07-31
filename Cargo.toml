@@ -1,0 +1,84 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/protocol",
+    "crates/download-core",
+    "crates/platform",
+    "crates/native-host",
+    "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "GPL-3.0-or-later"
+authors = ["Leon Erwin Huber"]
+repository = "https://github.com/HuberLeon007/freeloader"
+
+[workspace.dependencies]
+anyhow = "1"
+bytes = "1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+percent-encoding = "2"
+rand = "0.8"
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",
+    "stream",
+    "gzip",
+    "brotli",
+    "http2",
+    "charset",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = [
+    "sqlite",
+    "runtime-tokio-rustls",
+    "migrate",
+    "macros",
+] }
+thiserror = "2"
+time = { version = "0.3", features = ["formatting", "macros"] }
+tokio = { version = "1", features = [
+    "fs",
+    "io-util",
+    "macros",
+    "rt-multi-thread",
+    "sync",
+    "time",
+] }
+tokio-util = { version = "0.7", features = ["io"] }
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+url = "2"
+uuid = { version = "1", features = ["v7", "serde"] }
+
+# Development dependencies shared across crates.
+axum = { version = "0.7", default-features = false, features = [
+    "http1",
+    "tokio",
+    "query",
+] }
+insta = { version = "1", features = ["json"] }
+proptest = "1"
+tempfile = "3"
+
+# Workspace-internal crates.
+freeloader-download-core = { path = "crates/download-core" }
+freeloader-platform = { path = "crates/platform" }
+freeloader-protocol = { path = "crates/protocol" }
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = "s"
+panic = "abort"
+strip = true
+
+[profile.dev]
+# Faster incremental feedback during red-green-refactor cycles.
+opt-level = 0
+debug = 1

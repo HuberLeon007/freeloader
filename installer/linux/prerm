@@ -1,0 +1,7 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -eu
+for path in "$HOME/.config/google-chrome/NativeMessagingHosts/io.freeloader.host.json" "$HOME/.config/chromium/NativeMessagingHosts/io.freeloader.host.json" "$HOME/.config/microsoft-edge/NativeMessagingHosts/io.freeloader.host.json" "$HOME/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts/io.freeloader.host.json" "$HOME/.config/vivaldi/NativeMessagingHosts/io.freeloader.host.json" "$HOME/.mozilla/native-messaging-hosts/io.freeloader.host.json"; do
+  rm -f "$path"
+done
+exit 0
