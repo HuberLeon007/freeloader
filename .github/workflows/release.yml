@@ -29,7 +29,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.12.1
       - uses: actions/setup-node@v4
@@ -77,7 +77,7 @@ jobs:
             patchelf \
             rpm \
             fakeroot
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.12.1
       - uses: actions/setup-node@v4
