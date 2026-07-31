@@ -1,7 +1,7 @@
 name: Autofix
 
 # Formatting should never be a merge blocker. On any branch that is not main we
-# run the real rustfmt and push the result back, so `cargo fmt --all --check`
+# run the real rustfmt and push the result, so `cargo fmt --all --check`
 # in CI is always satisfiable without a human round trip.
 
 on:
@@ -26,15 +26,46 @@ jobs:
           ref: ${{ github.ref_name }}
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
-      - run: cargo fmt --all
-      - name: Commit and push formatting
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux desktop dependencies
         run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "Already formatted."
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+      - run: cargo fmt --all
+      - name: Collect diagnostics
+        run: |
+          set +e
+          mkdir -p .ci
+          cargo clippy --workspace --all-targets --message-format short > /tmp/clippy.txt 2>&1
+          echo "exit=$?" >> /tmp/clippy.txt
+          cargo test --workspace > /tmp/test.txt 2>&1
+          echo "exit=$?" >> /tmp/test.txt
+          {
+            echo '## clippy'
+            echo '```'
+            tail -c 45000 /tmp/clippy.txt
+            echo '```'
+            echo '## test'
+            echo '```'
+            tail -c 35000 /tmp/test.txt
+            echo '```'
+          } > .ci/diagnostics.md
+      - name: Commit and push
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to push."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "style: apply cargo fmt"
+          git commit -m "chore: rustfmt and ci diagnostics"
           git push origin HEAD:${{ github.ref_name }}
