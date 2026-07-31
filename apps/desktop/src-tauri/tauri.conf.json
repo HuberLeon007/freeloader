@@ -3,7 +3,50 @@
   "productName": "Freeloader",
   "version": "0.1.0",
   "identifier": "io.freeloader.desktop",
-  "build": {"beforeDevCommand":"pnpm --dir apps/desktop dev","beforeBuildCommand":"pnpm --dir apps/desktop build","devUrl":"http://localhost:1420","frontendDist":"../dist"},
-  "app": {"windows":[{"label":"main","title":"Freeloader","width":1180,"height":760,"minWidth":900,"minHeight":600,"resizable":true,"fullscreen":false}],"security":{"csp":"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"}},
-  "bundle": {"active":true,"targets":["nsis"],"createUpdaterArtifacts":false,"category":"Utility","shortDescription":"Private local-first download manager","longDescription":"Freeloader streams user-requested HTTP(S) downloads locally without accounts, cloud services, telemetry or a shipped local server.","windows":{"nsis":{"installMode":"both","displayLanguageSelector":true,"languages":["English","German"],"compression":"lzma"}}}
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Freeloader",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 940,
+        "minHeight": 620,
+        "resizable": true,
+        "fullscreen": false,
+        "theme": null
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "deb", "rpm", "appimage"],
+    "createUpdaterArtifacts": false,
+    "category": "Utility",
+    "shortDescription": "Private local-first download manager",
+    "longDescription": "Freeloader streams user-requested HTTP(S) downloads locally without accounts, cloud services, telemetry or a shipped local server.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "both",
+        "displayLanguageSelector": true,
+        "languages": ["English", "German"],
+        "compression": "lzma"
+      }
+    }
+  }
 }

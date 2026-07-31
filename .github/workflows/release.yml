@@ -3,13 +3,19 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   windows:
+    name: Windows ${{ matrix.target }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - runner: windows-latest
@@ -20,19 +26,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with: { targets: ${{ matrix.target }} }
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
-        with: { version: 10.12.1 }
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with:
+          node-version: 22
+          cache: pnpm
       - run: pnpm install --frozen-lockfile=false
-      - run: pnpm --dir apps/desktop build
-      - run: cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target ${{ matrix.target }} --bundles nsis
+      - name: Bundle
+        run: pnpm --dir apps/desktop exec tauri build --target ${{ matrix.target }} --bundles nsis
       - uses: actions/upload-artifact@v4
-        with: { name: windows-${{ matrix.target }}, path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/* }
+        with:
+          name: windows-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/bundle/nsis/*
+          if-no-files-found: error
 
   linux:
+    name: Linux ${{ matrix.target }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - runner: ubuntu-22.04
@@ -45,13 +61,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with: { targets: ${{ matrix.target }} }
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            rpm \
+            fakeroot
       - uses: pnpm/action-setup@v4
-        with: { version: 10.12.1 }
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
       - run: pnpm install --frozen-lockfile=false
-      - run: pnpm --dir apps/desktop build
-      - run: cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Bundle
+        run: pnpm --dir apps/desktop exec tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
       - uses: actions/upload-artifact@v4
-        with: { name: linux-${{ matrix.target }}, path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/* }
+        with:
+          name: linux-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/bundle/*
+          if-no-files-found: error

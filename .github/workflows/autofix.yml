@@ -1,0 +1,40 @@
+name: Autofix
+
+# Formatting should never be a merge blocker. On any branch that is not main we
+# run the real rustfmt and push the result back, so `cargo fmt --all --check`
+# in CI is always satisfiable without a human round trip.
+
+on:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autofix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rustfmt:
+    name: cargo fmt
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all
+      - name: Commit and push formatting
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "style: apply cargo fmt"
+          git push origin HEAD:${{ github.ref_name }}
