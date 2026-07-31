@@ -2,16 +2,40 @@
 name = "freeloader-download-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 publish = false
+description = "Portable download engine with SQLite persistence"
+
+[lints.rust]
+missing_docs = "warn"
 
 [dependencies]
-anyhow = "1"
-futures-util = "0.3"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "gzip", "brotli"] }
-serde = { version = "1", features = ["derive"] }
-sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate"] }
-thiserror = "2"
-tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
-uuid = { version = "1", features = ["v7", "serde"] }
-url = "2"
+async-trait = "0.1"
+bytes = { workspace = true }
+freeloader-protocol = { workspace = true }
+futures-util = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+time = { workspace = true }
+ts-rs = { version = "10", optional = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+axum = { workspace = true }
+insta = { workspace = true }
+proptest = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
+
+[features]
+default = []
+ts = ["ts-rs"]
+fakes = []

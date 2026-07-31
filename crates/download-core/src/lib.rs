@@ -1,19 +1,100 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Portable download engine primitives.
+//! Portable download engine with SQLite persistence.
+//!
+//! This crate provides the core download logic for Freeloader: a streaming
+//! HTTP(S) downloader with pause, resume, and persistence via SQLite. It is
+//! UI-agnostic and contains no platform-specific code.
+
+#![forbid(unsafe_code)]
+#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
 
 use futures_util::StreamExt;
-use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
-use std::{path::{Path, PathBuf}, time::Duration};
+use sqlx::{
+    migrate::MigrateDatabase,
+    sqlite::SqlitePoolOptions,
+    Sqlite, SqlitePool,
+};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use thiserror::Error;
-use tokio::{fs::{self, OpenOptions}, io::AsyncWriteExt, sync::watch};
+use tokio::{
+    fs::{self, OpenOptions},
+    io::AsyncWriteExt,
+    sync::watch,
+};
 use uuid::Uuid;
+
+pub mod models;
+pub mod seams;
+pub mod repository;
+pub mod containment;
+pub mod http_client;
+pub mod engine;
+pub mod filesystem;
+pub mod clock_prod;
+
+// ── Error hierarchy ────────────────────────────────────────────────────────
+
+/// Top-level engine error covering all failure modes.
+#[derive(Debug, Error)]
+pub enum EngineError {
+    /// The URL scheme is not HTTP(S) or the host is missing.
+    #[error("invalid URL")]
+    InvalidUrl,
+
+    /// The resolved destination path escapes the download directory.
+    #[error("path escapes the download directory")]
+    UnsafePath,
+
+    /// A network transport error occurred.
+    #[error("HTTP request failed: {0}")]
+    Http(#[from] reqwest::Error),
+
+    /// A filesystem operation failed.
+    #[error("filesystem operation failed: {0}")]
+    Io(#[from] std::io::Error),
+
+    /// A database operation failed.
+    #[error("database operation failed: {0}")]
+    Database(#[from] sqlx::Error),
+
+    /// A database migration failed.
+    #[error("migration failed: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
+
+    /// The server returned an unsuccessful HTTP status.
+    #[error("server returned status {0}")]
+    HttpStatus(reqwest::StatusCode),
+}
+
+// ── State machine ───────────────────────────────────────────────────────────
 
 /// Lifecycle state of a download.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum DownloadStatus { Created, Validating, Queued, Downloading, Paused, Retrying, Completed, Failed, Cancelled }
+pub enum DownloadStatus {
+    /// Initial state before validation.
+    Created,
+    /// URL and metadata are being validated.
+    Validating,
+    /// Waiting for a download slot.
+    Queued,
+    /// Actively transferring data.
+    Downloading,
+    /// Transfer paused by user or system.
+    Paused,
+    /// Retrying after a transient failure.
+    Retrying,
+    /// Download finished successfully.
+    Completed,
+    /// Download failed permanently.
+    Failed,
+    /// Download was cancelled by the user.
+    Cancelled,
+}
 
 /// Invalid lifecycle transition.
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -28,153 +109,269 @@ pub struct InvalidTransition {
 impl DownloadStatus {
     /// Check whether a status transition is allowed.
     pub const fn can_transition_to(self, next: Self) -> bool {
-        matches!((self, next),
-            (Self::Created, Self::Validating | Self::Cancelled) |
-            (Self::Validating, Self::Queued | Self::Failed | Self::Cancelled) |
-            (Self::Queued, Self::Downloading | Self::Cancelled) |
-            (Self::Downloading, Self::Paused | Self::Retrying | Self::Completed | Self::Failed | Self::Cancelled) |
-            (Self::Paused, Self::Queued | Self::Downloading | Self::Cancelled) |
-            (Self::Retrying, Self::Queued | Self::Downloading | Self::Failed | Self::Cancelled))
+        matches!(
+            (self, next),
+            (Self::Created, Self::Validating | Self::Cancelled)
+                | (Self::Validating, Self::Queued | Self::Failed | Self::Cancelled)
+                | (Self::Queued, Self::Downloading | Self::Cancelled)
+                | (
+                    Self::Downloading,
+                    Self::Paused
+                        | Self::Retrying
+                        | Self::Completed
+                        | Self::Failed
+                        | Self::Cancelled
+                )
+                | (Self::Paused, Self::Queued | Self::Cancelled)
+                | (Self::Retrying, Self::Queued | Self::Downloading | Self::Failed | Self::Cancelled)
+        )
     }
 
     /// Apply a validated transition.
     pub fn try_transition(self, next: Self) -> Result<Self, InvalidTransition> {
-        if self.can_transition_to(next) { Ok(next) } else { Err(InvalidTransition { from: self, to: next }) }
+        if self.can_transition_to(next) {
+            Ok(next)
+        } else {
+            Err(InvalidTransition { from: self, to: next })
+        }
     }
 }
 
-/// Progress event emitted by the engine.
+// ── Data types ──────────────────────────────────────────────────────────────
+
+/// Progress event emitted during a transfer.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Progress {
     /// Download identifier.
     pub id: Uuid,
-    /// Bytes written.
+    /// Bytes written to the part file so far.
     pub downloaded: u64,
     /// Total bytes when known.
     pub total: Option<u64>,
 }
 
-/// A download record persisted by the application.
+/// A persisted download record.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DownloadRecord {
-    /// Identifier.
+    /// Unique identifier.
     pub id: Uuid,
-    /// Source URL.
+    /// Original request URL.
     pub url: String,
-    /// Destination file.
+    /// Resolved destination path.
     pub destination: PathBuf,
-    /// Temporary file.
+    /// Temporary part-file path.
     pub temporary: PathBuf,
-    /// Current status.
+    /// Current lifecycle status.
     pub status: DownloadStatus,
-    /// Bytes written.
+    /// Bytes confirmed durable on disk.
     pub downloaded: u64,
     /// Total bytes when known.
     pub total: Option<u64>,
 }
 
-/// Core engine errors.
-#[derive(Debug, Error)]
-pub enum CoreError {
-    #[error("invalid URL")]
-    InvalidUrl,
-    #[error("path escapes the download directory")]
-    UnsafePath,
-    #[error("HTTP request failed: {0}")]
-    Http(#[from] reqwest::Error),
-    #[error("filesystem operation failed: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("database operation failed: {0}")]
-    Database(#[from] sqlx::Error),
-    #[error("server returned status {0}")]
-    HttpStatus(StatusCode),
-}
+// ── Database ────────────────────────────────────────────────────────────────
 
-/// Sanitize a filename for Windows and Linux.
-pub fn sanitize_filename(input: &str) -> String {
-    let forbidden = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-    let mut result: String = input.chars().filter(|character| {
-        !character.is_control()
-            && !forbidden.contains(character)
-            && !matches!(*character, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
-    }).collect();
-    result = result.trim_matches([' ', '.']).to_owned();
-    if result.is_empty() || result == ".." { result = "download".to_owned(); }
-    let device = result.split('.').next().unwrap_or_default().to_ascii_uppercase();
-    if matches!(device.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "COM1" | "COM2" | "COM3" | "COM4" | "COM5" | "COM6" | "COM7" | "COM8" | "COM9" | "LPT1" | "LPT2" | "LPT3" | "LPT4" | "LPT5" | "LPT6" | "LPT7" | "LPT8" | "LPT9") { return "download".to_owned(); }
-    result.chars().take(180).collect()
-}
+/// Open (or create) the SQLite database at `path`, run all pending migrations,
+/// and set durability pragmas.
+///
+/// # Errors
+///
+/// Returns `EngineError::Database` if the pool cannot be opened or a migration
+/// fails. Returns `EngineError::Io` if the parent directory cannot be created.
+pub async fn open_database(path: &Path) -> Result<SqlitePool, EngineError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).await?;
+    }
 
-/// Create a SQLite pool and initialize the local schema.
-pub async fn open_database(path: &Path) -> Result<SqlitePool, CoreError> {
-    if let Some(parent) = path.parent() { fs::create_dir_all(parent).await?; }
-    let url = format!("sqlite://{}", path.display());
-    let pool = SqlitePoolOptions::new().max_connections(5).connect(&url).await?;
-    sqlx::query("PRAGMA journal_mode=WAL").execute(&pool).await?;
-    sqlx::query("PRAGMA foreign_keys=ON").execute(&pool).await?;
-    sqlx::query("CREATE TABLE IF NOT EXISTS downloads (id TEXT PRIMARY KEY, url TEXT NOT NULL, destination TEXT NOT NULL, temporary TEXT NOT NULL, status TEXT NOT NULL, downloaded INTEGER NOT NULL, total INTEGER, created_at INTEGER NOT NULL)").execute(&pool).await?;
+    let url = format!(
+        "sqlite://{}",
+        path.to_string_lossy().replace('\\', "/")
+    );
+
+    if !Sqlite::database_exists(&url).await? {
+        Sqlite::create_database(&url).await?;
+    }
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect(&url)
+        .await?;
+
+    sqlx::query("PRAGMA journal_mode=WAL")
+        .execute(&pool)
+        .await?;
+    sqlx::query("PRAGMA foreign_keys=ON")
+        .execute(&pool)
+        .await?;
+
+    sqlx::migrate!("./migrations").run(&pool).await?;
+
     Ok(pool)
 }
 
-/// A single-stream HTTP downloader.
-pub struct SingleStreamDownloader { client: Client, pool: SqlitePool }
+// ── Sanitize (delegates to protocol in Task 8) ──────────────────────────────
+
+/// Re-exported from `freeloader-protocol` — the single source of truth for
+/// filename sanitisation (Anf. 7.1).
+pub use freeloader_protocol::sanitize_filename;
+
+// ── Single-stream downloader ────────────────────────────────────────────────
+
+/// A single-stream HTTP downloader backed by a SQLite pool.
+///
+/// This is the v0.1 `DownloadStrategy` implementation. It streams one URL at a
+/// time to a `.part` file and atomically renames on success.
+pub struct SingleStreamDownloader {
+    client: reqwest::Client,
+    pool: SqlitePool,
+}
 
 impl SingleStreamDownloader {
-    /// Construct an engine over a persistent SQLite pool.
-    pub fn new(pool: SqlitePool) -> Result<Self, CoreError> {
-        let client = Client::builder().connect_timeout(Duration::from_secs(10)).redirect(reqwest::redirect::Policy::limited(10)).build()?;
+    /// Construct a downloader over an existing SQLite pool.
+    pub fn new(pool: SqlitePool) -> Result<Self, EngineError> {
+        let client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(10))
+            .redirect(reqwest::redirect::Policy::limited(10))
+            .build()?;
         Ok(Self { client, pool })
     }
 
     /// Stream one URL to a temporary file and atomically rename on success.
-    pub async fn download(&self, url: &str, directory: &Path, filename: &str, progress: watch::Sender<Progress>) -> Result<DownloadRecord, CoreError> {
-        let parsed = url::Url::parse(url).map_err(|_| CoreError::InvalidUrl)?;
-        if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() { return Err(CoreError::InvalidUrl); }
+    ///
+    /// Progress events are sent through the provided [`watch::Sender`].
+    pub async fn download(
+        &self,
+        url: &str,
+        directory: &Path,
+        filename: &str,
+        progress: watch::Sender<Progress>,
+    ) -> Result<DownloadRecord, EngineError> {
+        let parsed =
+            url::Url::parse(url).map_err(|_| EngineError::InvalidUrl)?;
+        if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
+            return Err(EngineError::InvalidUrl);
+        }
         fs::create_dir_all(directory).await?;
-        let clean = sanitize_filename(filename);
+        use freeloader_protocol::sanitize_filename;
+
+        let outcome = sanitize_filename(filename);
+        let clean = outcome.filename;
         let destination = directory.join(&clean);
         let root = fs::canonicalize(directory).await?;
-        if !destination.parent().is_some_and(|parent| parent.starts_with(&root)) { return Err(CoreError::UnsafePath); }
+        if !destination
+        .parent()
+        .is_some_and(|parent| parent.starts_with(&root))
+        {
+            return Err(EngineError::UnsafePath);
+        }
         let temporary = destination.with_file_name(format!("{}.part", clean));
         let response = self.client.get(url).send().await?.error_for_status()?;
         let total = response.content_length();
         let mut stream = response.bytes_stream();
-        let mut file = OpenOptions::new().create(true).write(true).truncate(true).open(&temporary).await?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&temporary)
+            .await?;
         let id = Uuid::now_v7();
         let mut downloaded = 0_u64;
         while let Some(chunk) = stream.next().await {
             let bytes = chunk?;
             file.write_all(&bytes).await?;
             downloaded += bytes.len() as u64;
-            let _ = progress.send(Progress { id, downloaded, total });
+            let _ = progress.send(Progress {
+                id,
+                downloaded,
+                total,
+            });
         }
         file.flush().await?;
         file.sync_all().await?;
         fs::rename(&temporary, &destination).await?;
-        Ok(DownloadRecord { id, url: url.to_owned(), destination, temporary, status: DownloadStatus::Completed, downloaded, total })
+        Ok(DownloadRecord {
+            id,
+            url: url.to_owned(),
+            destination,
+            temporary,
+            status: DownloadStatus::Completed,
+            downloaded,
+            total,
+        })
     }
 
     /// Expose the backing pool for application adapters.
-    pub fn pool(&self) -> &SqlitePool { &self.pool }
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
+    }
 }
 
+// ── Tests ───────────────────────────────────────────────────────────────────
+
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
 mod tests {
     use super::*;
 
     #[test]
     fn state_machine_accepts_normal_flow() {
         let state = DownloadStatus::Created
-            .try_transition(DownloadStatus::Validating).expect("valid")
-            .try_transition(DownloadStatus::Queued).expect("valid")
-            .try_transition(DownloadStatus::Downloading).expect("valid")
-            .try_transition(DownloadStatus::Completed).expect("valid");
+            .try_transition(DownloadStatus::Validating)
+            .expect("valid")
+            .try_transition(DownloadStatus::Queued)
+            .expect("valid")
+            .try_transition(DownloadStatus::Downloading)
+            .expect("valid")
+            .try_transition(DownloadStatus::Completed)
+            .expect("valid");
         assert_eq!(state, DownloadStatus::Completed);
     }
 
     #[test]
-    fn sanitizes_windows_names() {
-        assert_eq!(sanitize_filename("CON.txt"), "download");
-        assert_eq!(sanitize_filename("../a\\b?.zip"), "ab.zip");
+    fn state_machine_rejects_invalid_transitions() {
+        let err = DownloadStatus::Created
+            .try_transition(DownloadStatus::Completed)
+            .unwrap_err();
+        assert_eq!(err.from, DownloadStatus::Created);
+        assert_eq!(err.to, DownloadStatus::Completed);
+    }
+
+    #[test]
+    fn sanitizes_windows_device_names() {
+        let outcome = sanitize_filename("CON.txt");
+        assert_eq!(outcome.filename, "download");
+        assert!(outcome.used_fallback);
+    }
+
+    #[test]
+    fn sanitizes_path_traversal() {
+        let outcome = sanitize_filename("../a\\b?.zip");
+        assert_eq!(outcome.filename, "b.zip");
+    }
+
+    #[test]
+    fn sanitizes_empty_to_download() {
+        let empty = sanitize_filename("");
+        assert_eq!(empty.filename, "download");
+        assert!(empty.used_fallback);
+    }
+
+    #[tokio::test]
+    async fn open_database_is_idempotent() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("test.sqlite3");
+        let pool = open_database(&db_path).await.expect("first open");
+        // Verify pragmas are set.
+        let journal_mode: (String,) =
+            sqlx::query_as("PRAGMA journal_mode").fetch_one(&pool).await.expect("pragma");
+        // WAL may report as "wal" or "wal" depending on version; both are fine.
+        assert!(
+            journal_mode.0.eq_ignore_ascii_case("wal"),
+            "expected WAL, got {}",
+            journal_mode.0
+        );
+        drop(pool);
+        // Re-open on the same file – must not fail.
+        let _pool2 = open_database(&db_path).await.expect("second open");
     }
 }

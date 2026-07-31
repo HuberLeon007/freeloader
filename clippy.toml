@@ -1,0 +1,7 @@
+# Freeloader lint configuration.
+# The engine and protocol crates additionally deny unwrap/expect/panic via
+# crate-level attributes; this file holds the workspace-wide thresholds.
+msrv = "1.82"
+cognitive-complexity-threshold = 20
+too-many-arguments-threshold = 8
+disallowed-methods = []

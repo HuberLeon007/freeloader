@@ -1,123 +1,49 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Versioned messages exchanged with browser extensions.
+//
+// Freeloader - a local-first download manager.
+// Copyright (C) 2026 Leon Erwin Huber
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+// more details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see <https://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Serialize};
-use url::Url;
+//! Wire contract shared by the browser extensions, the native messaging host
+//! and the desktop application.
+//!
+//! This crate depends on `serde` and `url` only. It performs no I/O, spawns no
+//! runtime and compiles for every target the workspace supports, including
+//! `wasm32-unknown-unknown`. Everything in here is pure data plus validation,
+//! which is what makes defence in depth cheap: the extension, the host and the
+//! application all run the *same* checks rather than trusting each other.
 
-/// Maximum accepted JSON payload size.
-pub const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
-/// Current protocol version.
-pub const CURRENT_VERSION: u8 = 1;
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::integer_division,
+    missing_docs
+)]
+#![forbid(unsafe_code)]
 
-/// A browser-to-host request.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct Request {
-    /// Protocol version.
-    pub version: u8,
-    /// Request kind.
-    #[serde(flatten)]
-    pub kind: RequestKind,
-}
+mod framing;
+mod message;
+mod sanitize;
+mod validation;
 
-/// Supported request kinds.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum RequestKind {
-    /// Capture one download.
-    CaptureDownload { payload: CaptureDownload },
-    /// Capture multiple downloads.
-    CaptureBatch { payload: CaptureBatch },
-    /// Check host availability.
-    Ping,
-}
-
-/// Download capture data.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct CaptureDownload {
-    /// Candidate URL.
-    pub url: String,
-    /// Browser-suggested filename.
-    pub suggested_filename: Option<String>,
-    /// Optional referrer.
-    pub referrer: Option<String>,
-    /// Optional content type.
-    pub content_type: Option<String>,
-    /// Credential forwarding is forbidden in v0.1.
-    pub cookies_included: bool,
-}
-
-/// Bounded batch payload.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CaptureBatch {
-    /// Captured items.
-    pub items: Vec<CaptureDownload>,
-}
-
-/// Validation failure.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ValidationError {
-    /// Unsupported protocol version.
-    UnsupportedVersion(u8),
-    /// Payload exceeds the limit.
-    PayloadTooLarge,
-    /// URL is invalid or not HTTP(S).
-    InvalidUrl,
-    /// Cookies are forbidden.
-    CookiesNotAllowed,
-    /// Batch exceeds the limit.
-    BatchTooLarge,
-}
-
-/// Validate a request before dispatch.
-pub fn validate_request(request: &Request, encoded_size: usize) -> Result<(), ValidationError> {
-    if encoded_size > MAX_PAYLOAD_BYTES { return Err(ValidationError::PayloadTooLarge); }
-    if request.version != CURRENT_VERSION { return Err(ValidationError::UnsupportedVersion(request.version)); }
-    match &request.kind {
-        RequestKind::Ping => Ok(()),
-        RequestKind::CaptureDownload { payload } => validate_capture(payload),
-        RequestKind::CaptureBatch { payload } => {
-            if payload.items.len() > 50 { return Err(ValidationError::BatchTooLarge); }
-            payload.items.iter().try_for_each(validate_capture)
-        }
-    }
-}
-
-fn validate_capture(payload: &CaptureDownload) -> Result<(), ValidationError> {
-    let url = Url::parse(&payload.url).map_err(|_| ValidationError::InvalidUrl)?;
-    if payload.url.len() > 2048 || url.host_str().is_none() || !matches!(url.scheme(), "http" | "https") {
-        return Err(ValidationError::InvalidUrl);
-    }
-    if payload.cookies_included { return Err(ValidationError::CookiesNotAllowed); }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn request(url: &str) -> Request {
-        Request { version: CURRENT_VERSION, kind: RequestKind::CaptureDownload { payload: CaptureDownload { url: url.to_owned(), suggested_filename: None, referrer: None, content_type: None, cookies_included: false } } }
-    }
-
-    #[test]
-    fn validates_http_and_https() {
-        assert!(validate_request(&request("https://example.test/file"), 10).is_ok());
-        assert!(validate_request(&request("http://example.test/file"), 10).is_ok());
-    }
-
-    #[test]
-    fn rejects_unsafe_schemes() {
-        assert_eq!(validate_request(&request("file:///tmp/a"), 10), Err(ValidationError::InvalidUrl));
-        assert_eq!(validate_request(&request("javascript:alert(1)"), 10), Err(ValidationError::InvalidUrl));
-    }
-
-    #[test]
-    fn round_trips_json() {
-        let original = request("https://example.test/file");
-        let encoded = serde_json::to_vec(&original).expect("serialization must work");
-        let decoded: Request = serde_json::from_slice(&encoded).expect("deserialization must work");
-        assert_eq!(decoded, original);
-    }
-}
+pub use framing::{decode_frame, encode_frame, FrameError, FRAME_HEADER_LEN};
+pub use message::{
+    CaptureBatch, CaptureDownload, ErrorCode, ErrorPayload, Request, RequestKind, Response,
+    ResponseKind, CURRENT_VERSION, MAX_BATCH_ITEMS, MAX_PAYLOAD_BYTES, MAX_URL_LEN,
+};
+pub use sanitize::{sanitize_filename, SanitizeOutcome, FALLBACK_FILENAME, MAX_FILENAME_BYTES};
+pub use validation::{validate_capture, validate_request, validate_url, ValidationError};

@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-p",
+        "127.0.0.1:8085:8085",
+        "-e",
+        "GITHUB_OAUTH_CALLBACK_PORT",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_OAUTH_CALLBACK_PORT": "8085"
+      },
+      "disabled": false
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "disabled": false
+    },
+    "cargo-mcp": {
+      "command": "uvx",
+      "args": [
+        "cargo-mcp"
+      ],
+      "disabled": true
+    }
+  }
+}
