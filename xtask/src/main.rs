@@ -152,3 +152,16 @@ fn check() -> Result<(), String> {
     step("frontend typecheck and build");
     run("pnpm", &["--dir", "apps/desktop", "run", "build"], &root)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::workspace_root;
+
+    #[test]
+    fn workspace_root_points_at_the_repository() {
+        let root = workspace_root();
+        assert!(root.join("Cargo.toml").is_file());
+        assert!(root.join("scripts/generate-icons.mjs").is_file());
+        assert!(root.join("apps/desktop/package.json").is_file());
+    }
+}
