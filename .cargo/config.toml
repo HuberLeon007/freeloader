@@ -1,0 +1,7 @@
+# `cargo dev` starts the desktop app from a fresh clone: it installs the Node
+# side if it is missing, generates the bundle icons, then runs the Tauri CLI.
+# See xtask/src/main.rs.
+
+[alias]
+dev = ["run", "--package", "xtask", "--quiet", "--", "dev"]
+xtask = ["run", "--package", "xtask", "--quiet", "--"]
