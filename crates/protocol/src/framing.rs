@@ -83,9 +83,9 @@ pub fn encode_frame(payload: &str) -> Result<Vec<u8>, FrameError> {
 ///
 /// # Errors
 /// Returns [`FrameError::Incomplete`] when more bytes are needed,
-/// [`FrameError::TooLarge`] when the declared length is over the limit — which
-/// callers must treat as fatal, since the stream can no longer be resynchronised
-/// — and [`FrameError::NotUtf8`] for a non-UTF-8 body.
+/// [`FrameError::TooLarge`] when the declared length is over the limit, which
+/// callers must treat as fatal since the stream can no longer be
+/// resynchronised, and [`FrameError::NotUtf8`] for a non-UTF-8 body.
 pub fn decode_frame(buffer: &[u8]) -> Result<(String, usize), FrameError> {
     let header = buffer
         .get(..FRAME_HEADER_LEN)
@@ -116,7 +116,14 @@ pub fn decode_frame(buffer: &[u8]) -> Result<(String, usize), FrameError> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
+    // These tests slice buffers whose length they just constructed, so the
+    // panic paths the crate denies in production code are unreachable here.
+    #![allow(
+        clippy::panic,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing
+    )]
 
     use super::*;
 

@@ -12,15 +12,18 @@ use std::time::Duration;
 pub struct MonotonicInstant(u64);
 
 impl MonotonicInstant {
+    /// Build an instant `millis` milliseconds after engine start.
     pub fn from_millis(millis: u64) -> Self {
         Self(millis)
     }
 
+    /// Elapsed time since `earlier`, saturating at zero when it is in the future.
     pub fn saturating_since(self, earlier: Self) -> Duration {
         Duration::from_millis(self.0.saturating_sub(earlier.0))
     }
 }
 
+/// The time boundary the engine is written against.
 #[async_trait]
 pub trait Clock: Send + Sync {
     /// Current wall-clock time for `*_at` columns.

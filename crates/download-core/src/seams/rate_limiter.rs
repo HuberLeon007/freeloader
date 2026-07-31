@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 
+/// The bandwidth boundary the engine is written against.
 #[async_trait]
 pub trait RateLimiter: Send + Sync {
     /// Acquire permission to send `bytes` bytes. May delay.
