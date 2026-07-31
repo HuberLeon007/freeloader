@@ -3,9 +3,8 @@
 //!
 //! The desktop app is a Rust workspace and a pnpm workspace at the same time,
 //! which means starting it involves a Node install, an icon generation step and
-//! the Tauri CLI, in that order. Getting the order wrong fails as a Rust build
-//! error about missing icons, which is a terrible first impression. `cargo dev`
-//! is an alias for `cargo run --package xtask -- dev` and does the whole thing.
+//! the local Tauri CLI, in that order. `cargo dev` always launches the native
+//! Tauri window, never the Vite page by itself.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -14,7 +13,7 @@ use std::process::{Command, ExitCode};
 const HELP: &str = "\
 Freeloader repository tasks
 
-  cargo dev            Install what is missing, then open the desktop app
+  cargo dev            Install what is missing, then open the native desktop app
   cargo xtask dev      The same thing, spelled out
   cargo xtask build    Bundle installers for this platform
   cargo xtask check    Run the four gates CI runs
@@ -38,7 +37,7 @@ fn main() -> ExitCode {
     match outcome {
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => {
-            eprintln!("\nx {message}");
+            eprintln!("\n✗ {message}");
             ExitCode::FAILURE
         }
     }
@@ -107,8 +106,13 @@ fn dev() -> Result<(), String> {
     let root = workspace_root();
     ensure_dependencies(&root)?;
     icons(&root)?;
-    step("Starting Freeloader. The first build takes a few minutes; the window opens on its own.");
-    run("pnpm", &["--dir", "apps/desktop", "run", "app:dev"], &root)
+    step("Starting the native Freeloader desktop window through Tauri");
+    step("Vite may report http://localhost:1420 in this terminal, but you do not need to open it");
+    run(
+        "pnpm",
+        &["--dir", "apps/desktop", "exec", "tauri", "dev"],
+        &root,
+    )
 }
 
 fn build() -> Result<(), String> {
@@ -118,7 +122,7 @@ fn build() -> Result<(), String> {
     step("Bundling installers");
     run(
         "pnpm",
-        &["--dir", "apps/desktop", "run", "app:build"],
+        &["--dir", "apps/desktop", "exec", "tauri", "build"],
         &root,
     )
 }
