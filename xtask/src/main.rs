@@ -116,7 +116,11 @@ fn build() -> Result<(), String> {
     ensure_dependencies(&root)?;
     icons(&root)?;
     step("Bundling installers");
-    run("pnpm", &["--dir", "apps/desktop", "run", "app:build"], &root)
+    run(
+        "pnpm",
+        &["--dir", "apps/desktop", "run", "app:build"],
+        &root,
+    )
 }
 
 fn check() -> Result<(), String> {
