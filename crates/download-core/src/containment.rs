@@ -5,7 +5,8 @@
 //! contains symlinks that point outside (Anf. 8.1–8.6, 2.5, 2.6).
 
 use crate::EngineError;
-use std::path::{Path, PathBuf};
+use std::ffi::OsString;
+use std::path::{Component, Path, PathBuf};
 
 /// Result of a containment check.
 #[derive(Debug, Clone)]
@@ -16,6 +17,41 @@ pub struct ContainedPath {
     pub temporary: PathBuf,
 }
 
+/// Resolve `.` and `..` lexically, without touching the filesystem.
+///
+/// `Path::starts_with` compares whole components, so an unresolved `..` makes
+/// an escaping path look contained. Returns `None` if the path climbs above
+/// its own root.
+fn normalize_lexically(path: &Path) -> Option<PathBuf> {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+            Component::RootDir => normalized.push(Component::RootDir.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !normalized.pop() {
+                    return None;
+                }
+            }
+            Component::Normal(part) => normalized.push(part),
+        }
+    }
+    Some(normalized)
+}
+
+/// A download may only write a single file into the target directory.
+///
+/// Returns the component if `filename` is exactly one normal path component,
+/// and `None` for anything absolute, empty, nested or traversing.
+fn single_file_component(filename: &str) -> Option<OsString> {
+    let mut components = Path::new(filename).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(name)), None) => Some(name.to_os_string()),
+        _ => None,
+    }
+}
+
 /// Validate that `directory / filename` (resolved) is inside `directory` (resolved).
 ///
 /// If the directory does not exist, it is created first. Symlinks that escape
@@ -23,32 +59,45 @@ pub struct ContainedPath {
 ///
 /// # Errors
 ///
-/// Returns `EngineError::UnsafePath` if the resolved destination lies outside
-/// the resolved directory, or if a symlink escape is detected.
+/// Returns `EngineError::UnsafePath` if `filename` is not a single path
+/// component, if the resolved destination lies outside the resolved directory,
+/// or if a symlink escape is detected.
 /// Returns `EngineError::Io` on filesystem errors.
 pub async fn resolve_safe_path(
     directory: &Path,
     filename: &str,
 ) -> Result<ContainedPath, EngineError> {
+    let file_component = single_file_component(filename).ok_or(EngineError::UnsafePath)?;
+
     tokio::fs::create_dir_all(directory).await?;
-
     let dir_canonical = tokio::fs::canonicalize(directory).await?;
-    let destination = dir_canonical.join(filename);
-    let dest_canonical = match tokio::fs::canonicalize(&destination).await {
-        Ok(canonical) => canonical,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => destination.clone(),
-        Err(e) => return Err(EngineError::Io(e)),
-    };
 
-    // Check containment: resolved destination must start with resolved directory.
-    if !dest_canonical.starts_with(&dir_canonical) {
+    let destination =
+        normalize_lexically(&dir_canonical.join(&file_component)).ok_or(EngineError::UnsafePath)?;
+    if !destination.starts_with(&dir_canonical) {
         return Err(EngineError::UnsafePath);
     }
 
-    let temporary = destination.with_file_name(format!("{filename}.part"));
+    // The target usually does not exist yet, and only an existing path can be
+    // canonicalised. When it does exist, canonicalisation is what catches a
+    // symlink pointing out of the directory.
+    let destination = match tokio::fs::canonicalize(&destination).await {
+        Ok(canonical) => {
+            if !canonical.starts_with(&dir_canonical) {
+                return Err(EngineError::UnsafePath);
+            }
+            canonical
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => destination,
+        Err(e) => return Err(EngineError::Io(e)),
+    };
+
+    let mut temporary_name = file_component;
+    temporary_name.push(".part");
+    let temporary = destination.with_file_name(temporary_name);
 
     Ok(ContainedPath {
-        destination: dest_canonical,
+        destination,
         temporary,
     })
 }
@@ -58,6 +107,11 @@ pub async fn resolve_safe_path(
 ///
 /// Returns the original filename if it does not already exist.
 /// Returns an error if 999 attempts are exhausted.
+///
+/// # Errors
+///
+/// Returns `EngineError::UnsafePath` when no free name is found within 999
+/// attempts, and `EngineError::Io` on filesystem errors.
 pub async fn resolve_unique_name(directory: &Path, filename: &str) -> Result<String, EngineError> {
     let candidate = directory.join(filename);
     if !tokio::fs::try_exists(&candidate).await? {
@@ -104,6 +158,30 @@ mod tests {
         // Try to escape via parent traversal.
         let result = resolve_safe_path(&sub, "../outside.txt").await;
         assert!(result.is_err());
+        // The file must not have been prepared outside the directory either.
+        assert!(!dir_path.join("outside.txt").exists());
+    }
+
+    #[tokio::test]
+    async fn containment_rejects_nested_and_absolute_names() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        assert!(resolve_safe_path(dir.path(), "sub/file.txt").await.is_err());
+        assert!(resolve_safe_path(dir.path(), "").await.is_err());
+        assert!(resolve_safe_path(dir.path(), ".").await.is_err());
+        assert!(resolve_safe_path(dir.path(), "..").await.is_err());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn containment_rejects_symlink_escape() {
+        let outside = tempfile::tempdir().expect("tempdir");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let target = outside.path().join("target.txt");
+        tokio::fs::write(&target, b"").await.expect("write");
+        std::os::unix::fs::symlink(&target, dir.path().join("link.txt")).expect("symlink");
+
+        let result = resolve_safe_path(dir.path(), "link.txt").await;
+        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -113,6 +191,7 @@ mod tests {
         assert!(result.is_ok());
         let contained = result.expect("contained");
         assert!(contained.destination.ends_with("test.txt"));
+        assert!(contained.temporary.ends_with("test.txt.part"));
     }
 
     #[tokio::test]
