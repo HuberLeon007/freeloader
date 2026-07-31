@@ -16,9 +16,10 @@ use freeloader_download_core::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_dialog::DialogExt;
 use tokio::sync::watch;
 
 struct AppState {
@@ -55,6 +56,48 @@ struct DownloadErrorEvent {
     message: String,
 }
 
+/// A download location the setup flow can offer, resolved by the OS.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DirectorySuggestion {
+    label: String,
+    path: String,
+    hint: String,
+}
+
+/// What is actually true about a chosen directory right now.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DirectoryReport {
+    path: String,
+    exists: bool,
+    writable: bool,
+}
+
+/// Report on a directory by trying the thing that matters: creating a file.
+///
+/// Permission bits lie often enough (read-only mounts, ACLs, containers) that
+/// a real write is the only answer worth showing a user before their first
+/// download.
+fn probe_directory(path: &Path) -> DirectoryReport {
+    let exists = path.is_dir();
+    let writable = exists && {
+        let marker = path.join(".freeloader-write-check");
+        match std::fs::File::create(&marker) {
+            Ok(_) => {
+                let _ = std::fs::remove_file(&marker);
+                true
+            }
+            Err(_) => false,
+        }
+    };
+    DirectoryReport {
+        path: path.to_string_lossy().to_string(),
+        exists,
+        writable,
+    }
+}
+
 #[tauri::command]
 async fn add_download(
     app: AppHandle,
@@ -65,7 +108,7 @@ async fn add_download(
     let directory = destination
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| std::path::Path::new("."))
+        .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
     let filename = destination
         .file_name()
@@ -160,6 +203,88 @@ fn open_in_file_manager(path: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// The OS download folder, falling back to the home directory.
+#[tauri::command]
+fn default_download_dir(app: AppHandle) -> String {
+    let resolver = app.path();
+    resolver
+        .download_dir()
+        .or_else(|_| resolver.home_dir())
+        .map(|dir| dir.to_string_lossy().to_string())
+        .unwrap_or_else(|_| String::from("."))
+}
+
+/// Download locations worth offering, in the order a user would expect them.
+#[tauri::command]
+fn suggested_directories(app: AppHandle) -> Vec<DirectorySuggestion> {
+    let resolver = app.path();
+    let mut out: Vec<DirectorySuggestion> = Vec::new();
+    let mut offer = |label: &str, hint: &str, dir: PathBuf| {
+        let path = dir.to_string_lossy().to_string();
+        if out.iter().any(|entry| entry.path == path) {
+            return;
+        }
+        out.push(DirectorySuggestion {
+            label: label.to_owned(),
+            path,
+            hint: hint.to_owned(),
+        });
+    };
+
+    if let Ok(dir) = resolver.download_dir() {
+        offer(
+            "Downloads",
+            "Where your browser already saves files",
+            dir.clone(),
+        );
+        offer(
+            "Downloads / Freeloader",
+            "Keeps managed transfers apart from everything else",
+            dir.join("Freeloader"),
+        );
+    }
+    if let Ok(dir) = resolver.document_dir() {
+        offer(
+            "Documents / Freeloader",
+            "Included in most backup setups",
+            dir.join("Freeloader"),
+        );
+    }
+    if let Ok(dir) = resolver.home_dir() {
+        offer("Home", "Everything in one place", dir);
+    }
+
+    out
+}
+
+/// Whether a directory exists and can actually be written to.
+#[tauri::command]
+fn inspect_directory(path: String) -> DirectoryReport {
+    probe_directory(&PathBuf::from(path))
+}
+
+/// Create a directory the user picked before it existed.
+#[tauri::command]
+fn create_directory(path: String) -> Result<DirectoryReport, String> {
+    let directory = PathBuf::from(path);
+    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    Ok(probe_directory(&directory))
+}
+
+/// Open the native folder picker. `None` means the user dismissed it.
+#[tauri::command]
+async fn pick_download_dir(app: AppHandle) -> Result<Option<String>, String> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_title("Choose where Freeloader saves files")
+        .pick_folder(move |folder| {
+            let _ = sender.send(folder);
+        });
+    let folder = receiver.await.map_err(|error| error.to_string())?;
+    Ok(folder.map(|value| value.to_string()))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -204,8 +329,13 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             add_download,
+            create_directory,
+            default_download_dir,
             detect_browsers,
-            open_in_file_manager
+            inspect_directory,
+            open_in_file_manager,
+            pick_download_dir,
+            suggested_directories
         ])
         .run(tauri::generate_context!())
         .expect("error while running Freeloader");
