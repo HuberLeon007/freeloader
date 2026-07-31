@@ -24,11 +24,12 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import { Onboarding } from "./onboarding";
+import { readTheme, resolveTheme, THEME_KEY, type ThemeMode } from "./theme";
 import "./styles.css";
 
 type Status = "queued" | "downloading" | "completed" | "failed";
 type ViewKey = "all" | "active" | "completed" | "failed";
-type ThemeMode = "system" | "dark" | "light";
 
 type DownloadItem = {
   id: string;
@@ -47,7 +48,6 @@ type CompletePayload = { id: string; path: string };
 type ErrorPayload = { id: string; message: string };
 type Sample = { at: number; bytes: number };
 
-const THEME_KEY = "freeloader.theme";
 const ONBOARDING_KEY = "freeloader.onboarding";
 const DESTINATION_KEY = "freeloader.destination";
 const RELEASES_URL = "https://github.com/HuberLeon007/freeloader/releases";
@@ -93,6 +93,14 @@ function parentDirectory(path: string): string {
   return cut > 0 ? path.slice(0, cut) : path;
 }
 
+/** Join using the separator the destination already speaks. */
+function joinPath(base: string, child: string): string {
+  if (base.length === 0) return child;
+  const separator = base.includes("\\") && !base.includes("/") ? "\\" : "/";
+  const trimmed = base.endsWith("/") || base.endsWith("\\") ? base.slice(0, -1) : base;
+  return `${trimmed}${separator}${child}`;
+}
+
 function filenameFrom(rawUrl: string): string {
   try {
     const parsed = new URL(rawUrl);
@@ -108,17 +116,6 @@ function extensionOf(name: string): string {
   const dot = name.lastIndexOf(".");
   if (dot <= 0 || dot === name.length - 1) return "file";
   return name.slice(dot + 1).toLowerCase().slice(0, 4);
-}
-
-function resolveTheme(mode: ThemeMode): "dark" | "light" {
-  if (mode !== "system") return mode;
-  if (typeof window === "undefined" || !window.matchMedia) return "dark";
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-}
-
-function readTheme(): ThemeMode {
-  const stored = localStorage.getItem(THEME_KEY);
-  return stored === "dark" || stored === "light" || stored === "system" ? stored : "system";
 }
 
 const VIEWS: { key: ViewKey; label: string }[] = [
@@ -170,11 +167,10 @@ function App(): React.JSX.Element {
   const [onboarding, setOnboarding] = useState(
     () => localStorage.getItem(ONBOARDING_KEY) !== "done",
   );
-  const [step, setStep] = useState(0);
   const [query, setQuery] = useState("");
   const [url, setUrl] = useState("");
   const [destination, setDestination] = useState(
-    () => localStorage.getItem(DESTINATION_KEY) ?? "Downloads",
+    () => localStorage.getItem(DESTINATION_KEY) ?? "",
   );
   const [items, setItems] = useState<DownloadItem[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -243,7 +239,26 @@ function App(): React.JSX.Element {
     return () => media.removeEventListener("change", sync);
   }, [themeMode]);
 
+  // A relative default would resolve against the process working directory, so
+  // the OS gets asked instead.
   useEffect(() => {
+    if (destination.trim().length > 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const resolved = await invoke<string>("default_download_dir");
+        if (!cancelled && resolved.length > 0) setDestination(resolved);
+      } catch {
+        /* the setup step asks for a folder anyway */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [destination]);
+
+  useEffect(() => {
+    if (destination.length === 0) return;
     localStorage.setItem(DESTINATION_KEY, destination);
   }, [destination]);
 
@@ -319,6 +334,15 @@ function App(): React.JSX.Element {
     }
   }, []);
 
+  const browseForFolder = useCallback(async (): Promise<void> => {
+    try {
+      const picked = await invoke<string | null>("pick_download_dir");
+      if (picked !== null && picked.length > 0) setDestination(picked);
+    } catch {
+      setNotice("The system folder picker did not open.");
+    }
+  }, []);
+
   const startDownload = useCallback(
     async (rawUrl: string): Promise<void> => {
       const trimmed = rawUrl.trim();
@@ -326,6 +350,7 @@ function App(): React.JSX.Element {
       setSubmitting(true);
       setNotice(null);
       const name = filenameFrom(trimmed);
+      const target = joinPath(destination, name);
       const id = crypto.randomUUID();
       setItems((current) => [
         {
@@ -335,7 +360,7 @@ function App(): React.JSX.Element {
           status: "queued",
           downloaded: 0,
           total: null,
-          destination: `${destination}/${name}`,
+          destination: target,
           speed: 0,
           error: null,
         },
@@ -345,7 +370,7 @@ function App(): React.JSX.Element {
         const result = await invoke<{ id: string; path: string }>("add_download", {
           input: {
             url: trimmed,
-            destinationPath: `${destination}/${name}`,
+            destinationPath: target,
             clientRequestId: id,
           },
         });
@@ -390,10 +415,10 @@ function App(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    if (onboarding) return;
     const onKeyDown = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null;
-      const typing =
-        target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+      const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
       if (event.key === "Escape") {
         setSettingsOpen(false);
         return;
@@ -410,7 +435,7 @@ function App(): React.JSX.Element {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [onboarding]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -426,110 +451,27 @@ function App(): React.JSX.Element {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  const pickTheme = (mode: ThemeMode): void => {
+  const pickTheme = useCallback((mode: ThemeMode): void => {
     localStorage.setItem(THEME_KEY, mode);
     setThemeMode(mode);
-  };
+  }, []);
 
   const cycleTheme = (): void => pickTheme(theme === "dark" ? "light" : "dark");
 
-  const finishOnboarding = (): void => {
+  const finishOnboarding = useCallback((): void => {
     localStorage.setItem(ONBOARDING_KEY, "done");
     setOnboarding(false);
-  };
+  }, []);
 
   if (onboarding) {
     return (
-      <div className="onboarding">
-        <div className="onboarding-aura" aria-hidden="true" />
-        <section
-          className="onboarding-card"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="onboarding-title"
-        >
-          <div className="brand brand-lg">
-            <span className="brand-mark" aria-hidden="true">
-              <Download size={18} />
-            </span>
-            <span className="brand-name">Freeloader</span>
-          </div>
-
-          <ol className="steps" aria-label={`Step ${step + 1} of 3`}>
-            {[0, 1, 2].map((index) => (
-              <li key={index} className={index <= step ? "step step-on" : "step"} />
-            ))}
-          </ol>
-
-          {step === 0 && (
-            <div className="onboarding-copy">
-              <p className="kicker">Local download utility</p>
-              <h1 id="onboarding-title">Your files. Your machine.</h1>
-              <p className="lede">
-                Freeloader streams HTTP and HTTPS transfers straight to disk. No account, no cloud
-                relay, no telemetry, no background server.
-              </p>
-            </div>
-          )}
-
-          {step === 1 && (
-            <div className="onboarding-copy">
-              <p className="kicker">Storage location</p>
-              <h1 id="onboarding-title">Choose where files land.</h1>
-              <label className="field">
-                <span className="field-label">Default folder</span>
-                <input
-                  className="input mono"
-                  value={destination}
-                  onChange={(event) => setDestination(event.target.value)}
-                />
-              </label>
-              <p className="lede">You can change this any time in Settings.</p>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="onboarding-copy">
-              <p className="kicker">Browser handoff</p>
-              <h1 id="onboarding-title">Send links from your browser.</h1>
-              <p className="lede">
-                Entirely optional. Freeloader only looks for executables on your PATH and never
-                reads a browser profile, cookie jar or history database.
-              </p>
-              <button className="button ghost" onClick={() => void detectBrowsers()}>
-                Detect browsers
-              </button>
-              {browsers.length > 0 && (
-                <ul className="detected">
-                  {browsers.map((browser) => (
-                    <li key={browser}>
-                      <Check size={14} aria-hidden="true" />
-                      {browser}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          <div className="onboarding-actions">
-            <button className="button quiet" onClick={finishOnboarding}>
-              Skip
-            </button>
-            {step < 2 ? (
-              <button className="button primary" onClick={() => setStep((value) => value + 1)}>
-                Continue
-                <ArrowUpRight size={15} aria-hidden="true" />
-              </button>
-            ) : (
-              <button className="button primary" onClick={finishOnboarding}>
-                Open Freeloader
-                <ArrowUpRight size={15} aria-hidden="true" />
-              </button>
-            )}
-          </div>
-        </section>
-      </div>
+      <Onboarding
+        destination={destination}
+        onDestinationChange={setDestination}
+        themeMode={themeMode}
+        onThemeChange={pickTheme}
+        onFinish={finishOnboarding}
+      />
     );
   }
 
@@ -575,7 +517,7 @@ function App(): React.JSX.Element {
             <h1>{VIEWS.find((entry) => entry.key === view)?.label ?? "All files"}</h1>
             <p>
               {visible.length} shown
-              {counts.active > 0 ? ` · ${counts.active} in flight` : ""}
+              {counts.active > 0 ? ` \u00b7 ${counts.active} in flight` : ""}
             </p>
           </div>
 
@@ -650,6 +592,9 @@ function App(): React.JSX.Element {
                   onChange={(event) => setDestination(event.target.value)}
                 />
               </label>
+              <button className="linkish" onClick={() => void browseForFolder()}>
+                Browse
+              </button>
               <span className="composer-hint">
                 Cookies and authorization headers are never forwarded.
               </span>
@@ -668,7 +613,7 @@ function App(): React.JSX.Element {
             <div className="summary-card">
               <span className="summary-key">Queue</span>
               <strong className="summary-value">
-                {counts.active} active · {counts.failed} failed
+                {counts.active} active \u00b7 {counts.failed} failed
               </strong>
             </div>
             <button
@@ -754,7 +699,9 @@ function App(): React.JSX.Element {
                           {formatBytes(item.downloaded)} / {formatBytes(item.total)}
                         </span>
                         <span>
-                          {item.status === "downloading" ? formatSpeed(item.speed) : formatEta(item)}
+                          {item.status === "downloading"
+                            ? formatSpeed(item.speed)
+                            : formatEta(item)}
                         </span>
                       </div>
                     </div>
@@ -834,6 +781,9 @@ function App(): React.JSX.Element {
                   onChange={(event) => setDestination(event.target.value)}
                 />
               </label>
+              <button className="linkish" onClick={() => void browseForFolder()}>
+                Choose a folder
+              </button>
             </div>
 
             <div className="drawer-block">
@@ -890,7 +840,7 @@ function App(): React.JSX.Element {
             </div>
 
             <footer className="drawer-foot">
-              <span className="drawer-version mono">v0.1.0 · GPL-3.0-or-later</span>
+              <span className="drawer-version mono">v0.1.0 \u00b7 GPL-3.0-or-later</span>
               <button className="button primary" onClick={() => setSettingsOpen(false)}>
                 Done
               </button>
