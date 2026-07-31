@@ -15,17 +15,19 @@ Freeloader is a desktop download manager built with Tauri v2, Rust and React. It
 ```bash
 git clone https://github.com/HuberLeon007/freeloader.git
 cd freeloader
-pnpm install
-pnpm --dir apps/desktop app:dev
+cargo dev
 ```
 
-That is the whole loop. `app:dev` runs the Tauri CLI, which builds the Rust core, starts Vite on port 1420 and opens the desktop window. Application icons are generated on the fly by `scripts/generate-icons.mjs`, so nothing binary needs to be checked in.
+That is the whole loop. `cargo dev` installs the frontend dependencies if they are missing, generates the application icons, compiles the Rust core and opens the desktop window. First run takes a few minutes while Cargo builds the workspace; afterwards it is incremental.
 
-To produce installers locally:
+| Command | What it does |
+| --- | --- |
+| `cargo dev` | Start the app with hot reload on the frontend |
+| `cargo dev build` | Bundle installers into `target/release/bundle` |
+| `cargo dev icons` | Regenerate the bundle icons |
+| `cargo dev setup` | Install frontend dependencies only |
 
-```bash
-pnpm --dir apps/desktop app:build
-```
+The pnpm scripts still work if you prefer them: `pnpm install` followed by `pnpm --dir apps/desktop app:dev`.
 
 ### Prerequisites
 
@@ -35,6 +37,10 @@ pnpm --dir apps/desktop app:build
 | Node 22 + pnpm 10 | `corepack enable` is enough |
 | Windows | Microsoft Visual Studio C++ Build Tools, WebView2 (preinstalled on Windows 11) |
 | Linux | `libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf` |
+
+## First run
+
+The setup flow asks four things and writes all of them to local storage: where files should land (the OS download folder is proposed, the native picker is one click away), which theme to use, and whether you want the browser extensions. Every answer is changeable later in settings, and skipping the flow is a single click.
 
 ## Repository layout
 
@@ -48,6 +54,7 @@ freeloader/
   crates/native-host/     # Native Messaging host / launcher
   extensions/             # Chromium (MV3) and Firefox WebExtensions
   scripts/                # Icon generation and native-messaging host registration
+  xtask/                  # Task runner behind `cargo dev`
   docs/                   # Architecture, ADRs, security model, release process
 ```
 
@@ -56,7 +63,7 @@ freeloader/
 ## Design principles
 
 1. **Local-first.** All state lives in SQLite inside the local application data directory.
-2. **No hidden network surface.** No localhost HTTP server, no WebSocket bridge, no relay, no telemetry.
+2. **No hidden network surface.** No localhost HTTP server, no WebSocket bridge, no relay, no telemetry. The interface ships no remote fonts or assets either.
 3. **Least privilege.** Browser extensions request only the permissions they can justify in writing.
 4. **Untrusted input by default.** URLs, filenames, headers and referrers are validated and sanitised before they touch the filesystem.
 5. **Efficient.** Streaming I/O, bounded memory, throttled IPC, and a release profile tuned for a small binary.
@@ -71,17 +78,17 @@ freeloader/
 | Observability | tracing / tracing-subscriber, local rotating log files |
 | Errors | thiserror in libraries, anyhow at the binary boundary |
 | Frontend | React 19, TypeScript (strict), Vite |
-| Styling | Hand-written CSS design tokens, Lucide icons |
+| Styling | Hand-written CSS design tokens in OKLCH, system typefaces, Lucide icons |
 | Browser bridge | Native Messaging over stdio, no network sockets |
 
 ## Keyboard
 
 | Shortcut | Action |
 | --- | --- |
-| `Ctrl` / `Cmd` + `N` | Focus the URL field |
-| `Enter` | Start the download in the URL field |
+| `Ctrl` / `Cmd` + `N` | Focus the link field |
+| `Enter` | Start the download, or advance the setup flow |
 | `/` | Focus the filter |
-| `Esc` | Close settings |
+| `Esc` | Close settings, or skip setup |
 
 ## Feature scope (MVP)
 
@@ -112,7 +119,7 @@ Explicitly **out of scope**: DRM circumvention, paywall bypass, streaming-site r
 
 `.github/workflows/ci.yml` runs four independent jobs: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and the frontend typecheck plus build. They are split so a red badge tells you which one broke without opening a log.
 
-`.github/workflows/autofix.yml` runs rustfmt on every non-main branch and pushes the result, so formatting is never a merge blocker.
+`.github/workflows/autofix.yml` runs rustfmt and machine-applicable clippy fixes on every non-main branch and pushes the result, so formatting is never a merge blocker.
 
 ## Licence
 
