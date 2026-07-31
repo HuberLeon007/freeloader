@@ -12,23 +12,25 @@ Freeloader is a desktop download manager built with Tauri v2, Rust and React. It
 
 ## Quick start
 
+**Current branch: `main`**
+
 ```bash
 git clone https://github.com/HuberLeon007/freeloader.git
 cd freeloader
+git switch main
 cargo dev
 ```
 
-That is the whole loop. `cargo dev` installs the Node side if it is missing, generates the application icons, builds the Rust core and opens the desktop window. The first build takes a few minutes; after that it is incremental.
+`cargo dev` is the native desktop start command. It installs dependencies when needed, generates application icons, then runs the workspace-local Tauri CLI with `pnpm exec tauri dev`. That opens the Freeloader Tauri window automatically. The `http://localhost:1420` address printed by Vite is only the internal frontend dev server, not a page you need to open.
 
-Other tasks:
+| Command | What it does |
+| --- | --- |
+| `cargo dev` | Start the native Tauri desktop app with hot reload |
+| `cargo dev build` | Bundle installers into `target/release/bundle` |
+| `cargo dev icons` | Regenerate the bundle icons |
+| `cargo xtask check` | Run the same four gates as CI |
 
-```bash
-cargo xtask build    # installers for the current platform
-cargo xtask check    # the same four gates CI runs
-cargo xtask icons    # regenerate the bundle icons
-```
-
-If you would rather drive pnpm yourself, `pnpm install && pnpm --dir apps/desktop app:dev` does the same thing.
+If a different branch is checked out, switch to `main` before running the command unless a PR explicitly says otherwise.
 
 ### Prerequisites
 
@@ -41,14 +43,7 @@ If you would rather drive pnpm yourself, `pnpm install && pnpm --dir apps/deskto
 
 ## First run
 
-Setup asks four questions and stores the answers on this machine only:
-
-1. What Freeloader is, and what it deliberately does not do
-2. Where files land: pick from OS-resolved suggestions or the native folder picker, with the target checked for existence and write access before you continue
-3. Appearance: system, dark or light
-4. Browser handoff: optional detection of browsers on your PATH
-
-Every answer is changeable later in Settings. `Esc` skips the whole thing.
+The setup flow asks four things and writes all of them to local storage: where files should land (the OS download folder is proposed, the native picker is one click away), which theme to use, and whether you want the browser extensions. Every answer is changeable later in settings, and skipping the flow is a single click.
 
 ## Repository layout
 
@@ -62,7 +57,7 @@ freeloader/
   crates/native-host/     # Native Messaging host / launcher
   extensions/             # Chromium (MV3) and Firefox WebExtensions
   scripts/                # Icon generation and native-messaging host registration
-  xtask/                  # Repository automation behind `cargo dev`
+  xtask/                  # Task runner behind `cargo dev`
   docs/                   # Architecture, ADRs, security model, release process
 ```
 
@@ -71,7 +66,7 @@ freeloader/
 ## Design principles
 
 1. **Local-first.** All state lives in SQLite inside the local application data directory.
-2. **No hidden network surface.** No localhost HTTP server, no WebSocket bridge, no relay, no telemetry.
+2. **No hidden network surface.** No localhost HTTP server, no WebSocket bridge, no relay, no telemetry. The interface ships no remote fonts or assets either.
 3. **Least privilege.** Browser extensions request only the permissions they can justify in writing.
 4. **Untrusted input by default.** URLs, filenames, headers and referrers are validated and sanitised before they touch the filesystem.
 5. **Efficient.** Streaming I/O, bounded memory, throttled IPC, and a release profile tuned for a small binary.
@@ -86,15 +81,15 @@ freeloader/
 | Observability | tracing / tracing-subscriber, local rotating log files |
 | Errors | thiserror in libraries, anyhow at the binary boundary |
 | Frontend | React 19, TypeScript (strict), Vite |
-| Styling | Hand-written CSS design tokens, Lucide icons |
+| Styling | Hand-written CSS design tokens in OKLCH, system typefaces, Lucide icons |
 | Browser bridge | Native Messaging over stdio, no network sockets |
 
 ## Keyboard
 
 | Shortcut | Action |
 | --- | --- |
-| `Ctrl` / `Cmd` + `N` | Focus the URL field |
-| `Enter` | Start the download in the URL field, or advance setup |
+| `Ctrl` / `Cmd` + `N` | Focus the link field |
+| `Enter` | Start the download, or advance the setup flow |
 | `/` | Focus the filter |
 | `Esc` | Close settings, or skip setup |
 
@@ -125,9 +120,9 @@ Explicitly **out of scope**: DRM circumvention, paywall bypass, streaming-site r
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs four independent jobs: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and the frontend typecheck plus build. They are split so a red badge tells you which one broke without opening a log. `cargo xtask check` runs the same four locally.
+`.github/workflows/ci.yml` runs four independent jobs: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and the frontend typecheck plus build. They are split so a red badge tells you which one broke without opening a log.
 
-`.github/workflows/autofix.yml` runs rustfmt on every non-main branch and pushes the result, so formatting is never a merge blocker.
+`.github/workflows/autofix.yml` runs rustfmt and machine-applicable clippy fixes on every non-main branch and pushes the result, so formatting is never a merge blocker.
 
 ## Licence
 
