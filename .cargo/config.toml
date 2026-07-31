@@ -1,0 +1,9 @@
+# Freeloader developer aliases.
+#
+# `cargo dev` is the only command a fresh clone needs: it installs the frontend
+# dependencies, generates the bundle icons, compiles the Rust core and opens the
+# desktop window. `cargo dev build` produces installers instead.
+
+[alias]
+dev = "run --quiet --package xtask --"
+xtask = "run --quiet --package xtask --"
