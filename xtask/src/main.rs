@@ -82,7 +82,7 @@ fn run(program: &str, args: &[&str], cwd: &Path) -> Result<(), String> {
     if status.success() {
         return Ok(());
     }
-    let printable = args.join(" " );
+    let printable = args.join(" ");
     Err(format!("`{program} {printable}` failed"))
 }
 
@@ -139,7 +139,14 @@ fn check() -> Result<(), String> {
     step("cargo clippy --workspace --all-targets -- -D warnings");
     run(
         &cargo,
-        &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
+        &[
+            "clippy",
+            "--workspace",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings",
+        ],
         &root,
     )?;
 
