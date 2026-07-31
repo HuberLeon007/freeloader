@@ -19,6 +19,7 @@ use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_dialog::DialogExt;
 use tokio::sync::watch;
 
 struct AppState {
@@ -160,6 +161,34 @@ fn open_in_file_manager(path: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// Absolute path of the folder the first run proposes for new downloads.
+#[tauri::command]
+fn default_download_dir(app: AppHandle) -> String {
+    let resolver = app.path();
+    resolver
+        .download_dir()
+        .or_else(|_| resolver.home_dir())
+        .map(|directory| directory.to_string_lossy().to_string())
+        .unwrap_or_else(|_| ".".to_owned())
+}
+
+/// Open the platform folder picker. Returns `None` when the user cancels.
+#[tauri::command]
+async fn pick_directory(app: AppHandle, start: Option<String>) -> Result<Option<String>, String> {
+    let mut builder = app.dialog().file().set_title("Choose a download folder");
+    if let Some(directory) = start.filter(|value| !value.trim().is_empty()) {
+        builder = builder.set_directory(PathBuf::from(directory));
+    }
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    builder.pick_folder(move |choice| {
+        let _ = tx.send(choice);
+    });
+
+    let choice = rx.await.map_err(|error| error.to_string())?;
+    Ok(choice.map(|folder| folder.to_string()))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -204,8 +233,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             add_download,
+            default_download_dir,
             detect_browsers,
-            open_in_file_manager
+            open_in_file_manager,
+            pick_directory
         ])
         .run(tauri::generate_context!())
         .expect("error while running Freeloader");
