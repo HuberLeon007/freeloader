@@ -39,7 +39,7 @@ jobs:
       - run: pnpm install --frozen-lockfile=false
       - name: Bundle
         run: pnpm --dir apps/desktop exec tauri build --target ${{ matrix.target }} --bundles nsis
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/bundle/nsis/*
@@ -87,7 +87,7 @@ jobs:
       - run: pnpm install --frozen-lockfile=false
       - name: Bundle
         run: pnpm --dir apps/desktop exec tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/bundle/*
