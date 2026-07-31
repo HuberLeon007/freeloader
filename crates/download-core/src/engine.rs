@@ -147,8 +147,11 @@ impl DownloadEngine {
             return Err(EngineError::InvalidUrl);
         }
 
-        // Resolve a safe filename and path.
-        let filename = resolve_filename_from_url(&url);
+        // Resolve a safe filename and path. The URL segment is attacker
+        // controlled and containment only accepts a single path component, so
+        // the protocol sanitiser runs first.
+        let candidate = resolve_filename_from_url(&url);
+        let filename = crate::sanitize_filename(&candidate).filename;
         let contained = containment::resolve_safe_path(directory, &filename).await?;
         let now = self.deps.clock.now();
 

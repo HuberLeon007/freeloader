@@ -47,24 +47,6 @@ jobs:
       - name: Apply machine-applicable clippy fixes
         run: cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged || true
       - run: cargo fmt --all
-      - name: Collect diagnostics
-        run: |
-          set +e
-          mkdir -p .ci
-          cargo clippy --workspace --all-targets --message-format short -- -D warnings > /tmp/clippy.txt 2>&1
-          echo "exit=$?" >> /tmp/clippy.txt
-          cargo test --workspace > /tmp/test.txt 2>&1
-          echo "exit=$?" >> /tmp/test.txt
-          {
-            echo '## clippy'
-            echo '```'
-            grep -v -e 'Downloaded ' -e 'Compiling ' -e 'Checking ' /tmp/clippy.txt | tail -c 40000
-            echo '```'
-            echo '## test'
-            echo '```'
-            grep -v -e 'Downloaded ' -e 'Compiling ' -e 'Checking ' /tmp/test.txt | tail -c 30000
-            echo '```'
-          } > .ci/diagnostics.md
       - name: Commit and push
         run: |
           git add -A
@@ -74,5 +56,5 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: rustfmt, clippy autofix and ci diagnostics"
+          git commit -m "style: rustfmt and clippy autofix"
           git push origin HEAD:${{ github.ref_name }}
