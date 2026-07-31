@@ -66,11 +66,11 @@ fn str_to_accept_ranges(s: &str) -> AcceptRanges {
 }
 
 fn error_code_to_str(ec: Option<&ErrorCode>) -> Option<&'static str> {
-    ec.map(|e| <&ErrorCode as Into<&'static str>>::into(e))
+    ec.map(<&ErrorCode as Into<&'static str>>::into)
 }
 
 fn restart_notice_to_str(rn: Option<&RestartNotice>) -> Option<&'static str> {
-    rn.map(|r| <&RestartNotice as Into<&'static str>>::into(r))
+    rn.map(<&RestartNotice as Into<&'static str>>::into)
 }
 
 fn row_to_domain(row: DownloadRow) -> Result<Download, RepositoryError> {
