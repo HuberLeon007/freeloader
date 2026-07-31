@@ -169,9 +169,7 @@ function App(): React.JSX.Element {
   );
   const [query, setQuery] = useState("");
   const [url, setUrl] = useState("");
-  const [destination, setDestination] = useState(
-    () => localStorage.getItem(DESTINATION_KEY) ?? "",
-  );
+  const [destination, setDestination] = useState(() => localStorage.getItem(DESTINATION_KEY) ?? "");
   const [items, setItems] = useState<DownloadItem[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -249,7 +247,7 @@ function App(): React.JSX.Element {
         const resolved = await invoke<string>("default_download_dir");
         if (!cancelled && resolved.length > 0) setDestination(resolved);
       } catch {
-        /* the setup step asks for a folder anyway */
+        /* setup asks for a folder anyway */
       }
     })();
     return () => {
@@ -517,7 +515,7 @@ function App(): React.JSX.Element {
             <h1>{VIEWS.find((entry) => entry.key === view)?.label ?? "All files"}</h1>
             <p>
               {visible.length} shown
-              {counts.active > 0 ? ` \u00b7 ${counts.active} in flight` : ""}
+              {counts.active > 0 ? ` · ${counts.active} in flight` : ""}
             </p>
           </div>
 
@@ -613,7 +611,7 @@ function App(): React.JSX.Element {
             <div className="summary-card">
               <span className="summary-key">Queue</span>
               <strong className="summary-value">
-                {counts.active} active \u00b7 {counts.failed} failed
+                {counts.active} active · {counts.failed} failed
               </strong>
             </div>
             <button
@@ -840,7 +838,7 @@ function App(): React.JSX.Element {
             </div>
 
             <footer className="drawer-foot">
-              <span className="drawer-version mono">v0.1.0 \u00b7 GPL-3.0-or-later</span>
+              <span className="drawer-version mono">v0.1.0 · GPL-3.0-or-later</span>
               <button className="button primary" onClick={() => setSettingsOpen(false)}>
                 Done
               </button>
