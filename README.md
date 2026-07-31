@@ -2,71 +2,131 @@
 
 **A fast, private, local-first download manager for Windows and Linux.**
 
-Freeloader is a GPL-3.0-or-later desktop download manager built with Rust, Tauri v2 and React. It has no account, cloud, advertisements, telemetry, tracking or shipped local HTTP server. Downloads are streamed directly to local `.part` files and atomically renamed after completion.
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-> **Current status:** early development. The repository now contains the Rust protocol, SQLite-backed streaming core, Tauri adapter, React GUI, first-run onboarding, Native Messaging foundations, browser extension packages and release workflow foundations. Treat target-platform artifacts as unverified until the matching CI job is green.
+Freeloader is a desktop download manager built with Tauri v2, Rust and React. It runs entirely on your machine: no account, no login, no cloud, no subscription, no ads, no telemetry, no tracking, no background web server. The only network traffic Freeloader produces is the downloads you ask for.
 
-## Clone and build
+> Status: **alpha.** The vertical slice works end to end. Expect rough edges.
 
-### Windows x64
+---
 
-```powershell
-git clone https://github.com/HuberLeon007/freeloader.git
-cd freeloader
-rustup toolchain install stable
-corepack enable
-pnpm install
-cargo test --workspace
-cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-pnpm --dir apps/desktop typecheck
-pnpm --dir apps/desktop build
-cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target x86_64-pc-windows-msvc --bundles nsis
-```
-
-### Windows ARM64
-
-Install Visual Studio 2022 Desktop development with C++, the MSVC ARM64/ARM64EC tools and the Windows 11 SDK first, then run:
-
-```powershell
-rustup target add aarch64-pc-windows-msvc
-pnpm install
-cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target aarch64-pc-windows-msvc --bundles nsis
-```
-
-### Linux
-
-Install WebKitGTK 4.1 and GTK development packages for your distribution before running:
+## Quick start
 
 ```bash
 git clone https://github.com/HuberLeon007/freeloader.git
 cd freeloader
 pnpm install
-cargo test --workspace
-pnpm --dir apps/desktop typecheck
-pnpm --dir apps/desktop build
-cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target x86_64-unknown-linux-gnu --bundles deb,rpm,appimage
+pnpm --dir apps/desktop app:dev
 ```
 
-Linux ARM64 packages require a native ARM64 runner or a fully configured cross-compilation toolchain:
+That is the whole loop. `app:dev` runs the Tauri CLI, which builds the Rust core, starts Vite on port 1420 and opens the desktop window. Application icons are generated on the fly by `scripts/generate-icons.mjs`, so nothing binary needs to be checked in.
+
+To produce installers locally:
 
 ```bash
-rustup target add aarch64-unknown-linux-gnu
-cargo tauri build --manifest-path apps/desktop/src-tauri/Cargo.toml --target aarch64-unknown-linux-gnu --bundles deb,rpm
+pnpm --dir apps/desktop app:build
 ```
 
-## Development
+### Prerequisites
 
-```bash
-pnpm --dir apps/desktop dev
+| Requirement | Notes |
+| --- | --- |
+| Rust (stable) | `rustup toolchain install stable` |
+| Node 22 + pnpm 10 | `corepack enable` is enough |
+| Windows | Microsoft Visual Studio C++ Build Tools, WebView2 (preinstalled on Windows 11) |
+| Linux | `libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf` |
+
+## Repository layout
+
+```
+freeloader/
+  apps/desktop/           # Tauri v2 shell: React + TypeScript + Vite frontend
+  apps/desktop/src-tauri/ # Tauri adapter, commands and events
+  crates/protocol/        # Versioned message contract, framing, validation, sanitisation
+  crates/download-core/   # Download engine, state machine, SQLite persistence
+  crates/platform/        # OS boundaries: data dirs, browser detection, file manager
+  crates/native-host/     # Native Messaging host / launcher
+  extensions/             # Chromium (MV3) and Firefox WebExtensions
+  scripts/                # Icon generation and native-messaging host registration
+  docs/                   # Architecture, ADRs, security model, release process
 ```
 
-For the native desktop shell, use `cargo tauri dev` after installing the current Tauri CLI. The production binary never starts an HTTP server. Test fixtures may use local servers only inside test processes.
+**Layering rule:** the frontend renders and dispatches intent, nothing more. The Rust core owns networking, the filesystem, the database and all download state. Large files never pass through the webview.
 
-## Browser extensions
+## Design principles
 
-Firefox and Edge may use their official stores after publication. Chromium browsers use the GitHub Releases ZIP only: download, extract to a stable directory, enable Developer Mode, select **Load unpacked**, and register the exact extension ID in the Native Messaging host manifest. The Chrome Web Store is intentionally not used.
+1. **Local-first.** All state lives in SQLite inside the local application data directory.
+2. **No hidden network surface.** No localhost HTTP server, no WebSocket bridge, no relay, no telemetry.
+3. **Least privilege.** Browser extensions request only the permissions they can justify in writing.
+4. **Untrusted input by default.** URLs, filenames, headers and referrers are validated and sanitised before they touch the filesystem.
+5. **Efficient.** Streaming I/O, bounded memory, throttled IPC, and a release profile tuned for a small binary.
+6. **Native feel.** Keyboard-first, WCAG 2.2 AA oriented contrast and focus states, full dark and light themes following the system preference.
 
-## License
+## Tech stack
 
-Freeloader is free software under the [GNU GPL-3.0-or-later](LICENSE). Distributed modified versions must preserve attribution, remain under GPL-3.0-or-later and provide corresponding source. See [development.md](docs/development.md) and [extensions.md](docs/extensions.md).
+| Layer | Choice |
+| --- | --- |
+| Shell | Tauri v2 |
+| Core | Rust (stable), Tokio, reqwest with rustls, sqlx + SQLite |
+| Observability | tracing / tracing-subscriber, local rotating log files |
+| Errors | thiserror in libraries, anyhow at the binary boundary |
+| Frontend | React 19, TypeScript (strict), Vite |
+| Styling | Hand-written CSS design tokens, Lucide icons |
+| Browser bridge | Native Messaging over stdio, no network sockets |
+
+## Keyboard
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl` / `Cmd` + `N` | Focus the URL field |
+| `Enter` | Start the download in the URL field |
+| `/` | Focus the filter |
+| `Esc` | Close settings |
+
+## Feature scope (MVP)
+
+- Add downloads by URL with pre-flight probing: size, content type, suggested filename, resume capability
+- Queue with a configurable concurrency limit
+- Start, resume, cancel, retry with exponential backoff
+- HTTP Range based resume when (and only when) the server supports it
+- Streaming writes to `.part` files, atomic rename on completion
+- Filename sanitisation and explicit conflict resolution (rename / overwrite / cancel)
+- Persistent queue that survives restarts
+- Search, filtering and per-state views
+- First-run setup flow that detects installed browsers
+- Browser extensions: context-menu capture and explicit page-link detection, never silent request interception
+
+Explicitly **out of scope**: DRM circumvention, paywall bypass, streaming-site rippers, credential or cookie harvesting.
+
+## Platform support
+
+| Platform | Architecture | Status |
+| --- | --- | --- |
+| Windows 10 / 11 | x86_64 | Primary target |
+| Windows 11 | ARM64 (aarch64) | Primary target, NSIS installer only |
+| Linux (Debian / Ubuntu / Fedora based) | x86_64 | Primary target |
+| Linux | ARM64 (aarch64) | Primary target |
+| macOS | - | Not supported and not planned for now |
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs four independent jobs: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and the frontend typecheck plus build. They are split so a red badge tells you which one broke without opening a log.
+
+`.github/workflows/autofix.yml` runs rustfmt on every non-main branch and pushes the result, so formatting is never a merge blocker.
+
+## Licence
+
+Freeloader is free software licensed under the **[GNU General Public License v3.0 or later](LICENSE)** (`GPL-3.0-or-later`), an OSI-approved open source licence.
+
+In plain terms:
+
+- You may use, study, run, copy, modify, fork and redistribute this software freely, including commercially.
+- You **must** preserve the copyright notices and attribution to the original project.
+- If you distribute a modified version, you **must** release its complete corresponding source code under the same GPL-3.0-or-later terms. Closed-source forks are not permitted.
+- Modified versions must be marked as changed so problems are not misattributed to the original authors.
+
+Contributions are accepted under the same licence, certified via the [Developer Certificate of Origin](https://developercertificate.org/) (`git commit -s`). No copyright assignment is requested.
+
+## Trademarks and references
+
+Freeloader is an independent project. It is not affiliated with, endorsed by, or derived from the source code, branding or assets of any other download manager.
