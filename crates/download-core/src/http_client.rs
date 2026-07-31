@@ -104,7 +104,10 @@ impl ReqwestHttpClient {
             content_length,
             content_range,
             accept_ranges,
-            validator: Validator { etag, last_modified },
+            validator: Validator {
+                etag,
+                last_modified,
+            },
             content_disposition,
             retry_after,
         }

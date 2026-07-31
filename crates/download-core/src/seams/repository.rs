@@ -125,7 +125,10 @@ pub trait DownloadRepository: Send + Sync {
 
     /// On startup: transition all `downloading` and `retrying` downloads to
     /// `paused`. Returns the IDs that were affected (Anf. 5.2).
-    async fn quiesce_running(&self, now: time::OffsetDateTime) -> Result<Vec<Uuid>, RepositoryError>;
+    async fn quiesce_running(
+        &self,
+        now: time::OffsetDateTime,
+    ) -> Result<Vec<Uuid>, RepositoryError>;
 
     /// Read a setting value.
     async fn read_setting(&self, key: SettingKey) -> Result<Option<String>, RepositoryError>;

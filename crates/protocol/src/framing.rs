@@ -40,7 +40,10 @@ impl core::fmt::Display for FrameError {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Incomplete { needed } => {
-                write!(formatter, "frame is incomplete, {needed} more bytes required")
+                write!(
+                    formatter,
+                    "frame is incomplete, {needed} more bytes required"
+                )
             }
             Self::TooLarge { declared } => write!(
                 formatter,
@@ -84,9 +87,11 @@ pub fn encode_frame(payload: &str) -> Result<Vec<u8>, FrameError> {
 /// callers must treat as fatal, since the stream can no longer be resynchronised
 /// — and [`FrameError::NotUtf8`] for a non-UTF-8 body.
 pub fn decode_frame(buffer: &[u8]) -> Result<(String, usize), FrameError> {
-    let header = buffer.get(..FRAME_HEADER_LEN).ok_or(FrameError::Incomplete {
-        needed: FRAME_HEADER_LEN.saturating_sub(buffer.len()),
-    })?;
+    let header = buffer
+        .get(..FRAME_HEADER_LEN)
+        .ok_or(FrameError::Incomplete {
+            needed: FRAME_HEADER_LEN.saturating_sub(buffer.len()),
+        })?;
 
     let mut length_bytes = [0_u8; FRAME_HEADER_LEN];
     length_bytes.copy_from_slice(header);

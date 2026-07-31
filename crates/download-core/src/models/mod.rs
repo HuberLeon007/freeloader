@@ -5,8 +5,8 @@
 //! - [`domain`] – types with enforced invariants
 //! - [`dto`] – camelCase-serialised types for the frontend boundary
 
-pub mod dto;
 pub mod domain;
+pub mod dto;
 // Row types are crate-only (Anf. 14.3).
 // Allowed dead_code until consumed by repository (Task 5).
 #[allow(dead_code, unused_imports)]

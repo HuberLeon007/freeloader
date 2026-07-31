@@ -4,11 +4,8 @@
 //! be added later without changing any call site.
 
 use crate::seams::{
-    http::HttpClient,
-    filesystem::FileSystem,
+    clock::Clock, filesystem::FileSystem, http::HttpClient, rate_limiter::RateLimiter,
     repository::DownloadRepository,
-    clock::Clock,
-    rate_limiter::RateLimiter,
 };
 use crate::EngineError;
 use async_trait::async_trait;
@@ -30,9 +27,9 @@ pub struct TransferPlan {
     pub validator: Validator,
 }
 
+pub use crate::models::domain::RestartNotice;
 pub use crate::seams::http::AcceptRanges;
 pub use crate::seams::http::Validator;
-pub use crate::models::domain::RestartNotice;
 
 /// Dependencies available to a strategy during execution.
 pub struct TransferContext {

@@ -249,7 +249,8 @@ mod tests {
 
     #[test]
     fn ping_serialises_without_a_payload_field() {
-        let encoded = serde_json::to_string(&Request::current(RequestKind::Ping)).unwrap_or_default();
+        let encoded =
+            serde_json::to_string(&Request::current(RequestKind::Ping)).unwrap_or_default();
         assert_eq!(encoded, r#"{"version":1,"type":"ping"}"#);
     }
 
@@ -270,7 +271,10 @@ mod tests {
 
     #[test]
     fn error_codes_have_stable_strings() {
-        assert_eq!(ErrorCode::UnsupportedVersion.as_str(), "unsupported_version");
+        assert_eq!(
+            ErrorCode::UnsupportedVersion.as_str(),
+            "unsupported_version"
+        );
         assert_eq!(ErrorCode::BatchTooLarge.as_str(), "batch_too_large");
     }
 }

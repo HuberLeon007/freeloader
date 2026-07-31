@@ -5,13 +5,13 @@
 #[cfg(feature = "ts")]
 #[test]
 fn export_typescript_bindings() {
-    use ts_rs::TS;
     use freeloader_download_core::models::dto::{
-        DownloadDto, ProgressDto, CreateDownloadRequest, CreateDownloadResponse, BrowserDto,
+        BrowserDto, CreateDownloadRequest, CreateDownloadResponse, DownloadDto, ProgressDto,
     };
+    use ts_rs::TS;
 
-    let out_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../apps/desktop/src");
+    let out_dir =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/desktop/src");
 
     std::fs::create_dir_all(&out_dir).expect("create frontend src dir");
 
@@ -32,8 +32,7 @@ fn export_typescript_bindings() {
         output.push('\n');
     }
 
-    std::fs::write(out_dir.join("generated-types.ts"), &output)
-        .expect("write generated-types.ts");
+    std::fs::write(out_dir.join("generated-types.ts"), &output).expect("write generated-types.ts");
 
     eprintln!("Wrote {len} types to generated-types.ts", len = types.len());
 }

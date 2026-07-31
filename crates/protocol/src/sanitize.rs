@@ -245,7 +245,11 @@ mod tests {
             '\u{2068}', '\u{2069}', '\u{200e}', '\u{200f}', '\u{061c}', '\u{200b}', '\u{feff}',
         ] {
             let candidate = format!("a{marker}b.txt");
-            assert_eq!(name(&candidate), "ab.txt", "marker {marker:?} must be removed");
+            assert_eq!(
+                name(&candidate),
+                "ab.txt",
+                "marker {marker:?} must be removed"
+            );
         }
     }
 

@@ -58,10 +58,7 @@ pub async fn resolve_safe_path(
 ///
 /// Returns the original filename if it does not already exist.
 /// Returns an error if 999 attempts are exhausted.
-pub async fn resolve_unique_name(
-    directory: &Path,
-    filename: &str,
-) -> Result<String, EngineError> {
+pub async fn resolve_unique_name(directory: &Path, filename: &str) -> Result<String, EngineError> {
     let candidate = directory.join(filename);
     if !tokio::fs::try_exists(&candidate).await? {
         return Ok(filename.to_owned());
@@ -71,9 +68,7 @@ pub async fn resolve_unique_name(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or(filename);
-    let ext = Path::new(filename)
-        .extension()
-        .and_then(|e| e.to_str());
+    let ext = Path::new(filename).extension().and_then(|e| e.to_str());
 
     for n in 1..=999_u16 {
         let candidate_name = match ext {
@@ -90,7 +85,12 @@ pub async fn resolve_unique_name(
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
 mod tests {
     use super::*;
 
@@ -119,15 +119,21 @@ mod tests {
     async fn resolve_unique_avoids_collision() {
         let dir = tempfile::tempdir().expect("tempdir");
         // Create the first file.
-        tokio::fs::write(dir.path().join("file.txt"), b"").await.expect("write");
-        let name = resolve_unique_name(dir.path(), "file.txt").await.expect("unique");
+        tokio::fs::write(dir.path().join("file.txt"), b"")
+            .await
+            .expect("write");
+        let name = resolve_unique_name(dir.path(), "file.txt")
+            .await
+            .expect("unique");
         assert_eq!(name, "file (1).txt");
     }
 
     #[tokio::test]
     async fn resolve_unique_no_conflict() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let name = resolve_unique_name(dir.path(), "new.txt").await.expect("unique");
+        let name = resolve_unique_name(dir.path(), "new.txt")
+            .await
+            .expect("unique");
         assert_eq!(name, "new.txt");
     }
 }

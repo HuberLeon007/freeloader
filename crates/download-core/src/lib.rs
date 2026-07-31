@@ -6,15 +6,16 @@
 //! UI-agnostic and contains no platform-specific code.
 
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
 
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    migrate::MigrateDatabase,
-    sqlite::SqlitePoolOptions,
-    Sqlite, SqlitePool,
-};
+use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePoolOptions, Sqlite, SqlitePool};
 use std::{
     path::{Path, PathBuf},
     time::Duration,
@@ -27,14 +28,14 @@ use tokio::{
 };
 use uuid::Uuid;
 
-pub mod models;
-pub mod seams;
-pub mod repository;
+pub mod clock_prod;
 pub mod containment;
-pub mod http_client;
 pub mod engine;
 pub mod filesystem;
-pub mod clock_prod;
+pub mod http_client;
+pub mod models;
+pub mod repository;
+pub mod seams;
 
 // ── Error hierarchy ────────────────────────────────────────────────────────
 
@@ -112,7 +113,10 @@ impl DownloadStatus {
         matches!(
             (self, next),
             (Self::Created, Self::Validating | Self::Cancelled)
-                | (Self::Validating, Self::Queued | Self::Failed | Self::Cancelled)
+                | (
+                    Self::Validating,
+                    Self::Queued | Self::Failed | Self::Cancelled
+                )
                 | (Self::Queued, Self::Downloading | Self::Cancelled)
                 | (
                     Self::Downloading,
@@ -123,7 +127,10 @@ impl DownloadStatus {
                         | Self::Cancelled
                 )
                 | (Self::Paused, Self::Queued | Self::Cancelled)
-                | (Self::Retrying, Self::Queued | Self::Downloading | Self::Failed | Self::Cancelled)
+                | (
+                    Self::Retrying,
+                    Self::Queued | Self::Downloading | Self::Failed | Self::Cancelled
+                )
         )
     }
 
@@ -132,7 +139,10 @@ impl DownloadStatus {
         if self.can_transition_to(next) {
             Ok(next)
         } else {
-            Err(InvalidTransition { from: self, to: next })
+            Err(InvalidTransition {
+                from: self,
+                to: next,
+            })
         }
     }
 }
@@ -183,10 +193,7 @@ pub async fn open_database(path: &Path) -> Result<SqlitePool, EngineError> {
         fs::create_dir_all(parent).await?;
     }
 
-    let url = format!(
-        "sqlite://{}",
-        path.to_string_lossy().replace('\\', "/")
-    );
+    let url = format!("sqlite://{}", path.to_string_lossy().replace('\\', "/"));
 
     if !Sqlite::database_exists(&url).await? {
         Sqlite::create_database(&url).await?;
@@ -200,9 +207,7 @@ pub async fn open_database(path: &Path) -> Result<SqlitePool, EngineError> {
     sqlx::query("PRAGMA journal_mode=WAL")
         .execute(&pool)
         .await?;
-    sqlx::query("PRAGMA foreign_keys=ON")
-        .execute(&pool)
-        .await?;
+    sqlx::query("PRAGMA foreign_keys=ON").execute(&pool).await?;
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
@@ -246,8 +251,7 @@ impl SingleStreamDownloader {
         filename: &str,
         progress: watch::Sender<Progress>,
     ) -> Result<DownloadRecord, EngineError> {
-        let parsed =
-            url::Url::parse(url).map_err(|_| EngineError::InvalidUrl)?;
+        let parsed = url::Url::parse(url).map_err(|_| EngineError::InvalidUrl)?;
         if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
             return Err(EngineError::InvalidUrl);
         }
@@ -259,8 +263,8 @@ impl SingleStreamDownloader {
         let destination = directory.join(&clean);
         let root = fs::canonicalize(directory).await?;
         if !destination
-        .parent()
-        .is_some_and(|parent| parent.starts_with(&root))
+            .parent()
+            .is_some_and(|parent| parent.starts_with(&root))
         {
             return Err(EngineError::UnsafePath);
         }
@@ -309,7 +313,12 @@ impl SingleStreamDownloader {
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
 mod tests {
     use super::*;
 
@@ -362,8 +371,10 @@ mod tests {
         let db_path = dir.path().join("test.sqlite3");
         let pool = open_database(&db_path).await.expect("first open");
         // Verify pragmas are set.
-        let journal_mode: (String,) =
-            sqlx::query_as("PRAGMA journal_mode").fetch_one(&pool).await.expect("pragma");
+        let journal_mode: (String,) = sqlx::query_as("PRAGMA journal_mode")
+            .fetch_one(&pool)
+            .await
+            .expect("pragma");
         // WAL may report as "wal" or "wal" depending on version; both are fine.
         assert!(
             journal_mode.0.eq_ignore_ascii_case("wal"),

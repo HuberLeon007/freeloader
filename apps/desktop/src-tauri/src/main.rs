@@ -9,8 +9,7 @@ use freeloader_download_core::{
     open_database,
     repository::SqliteRepository,
     seams::{
-        checksum::UnverifiedChecksum,
-        rate_limiter::PassThroughRateLimiter,
+        checksum::UnverifiedChecksum, rate_limiter::PassThroughRateLimiter,
         strategy::SingleStreamStrategy,
     },
     Progress, SingleStreamDownloader,

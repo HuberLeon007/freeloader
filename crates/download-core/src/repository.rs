@@ -43,9 +43,9 @@ fn str_to_status(s: &str) -> Result<DownloadStatus, RepositoryError> {
         "completed" => Ok(DownloadStatus::Completed),
         "failed" => Ok(DownloadStatus::Failed),
         "cancelled" => Ok(DownloadStatus::Cancelled),
-        other => Err(RepositoryError::Database(
-            sqlx::Error::Decode(format!("unknown status: {other}").into()),
-        )),
+        other => Err(RepositoryError::Database(sqlx::Error::Decode(
+            format!("unknown status: {other}").into(),
+        ))),
     }
 }
 
@@ -74,12 +74,12 @@ fn restart_notice_to_str(rn: Option<&RestartNotice>) -> Option<&'static str> {
 }
 
 fn row_to_domain(row: DownloadRow) -> Result<Download, RepositoryError> {
-    let id = Uuid::parse_str(&row.id).map_err(|_| {
-        RepositoryError::Database(sqlx::Error::Decode("invalid UUID".into()))
-    })?;
-    let url: url::Url = row.url.parse().map_err(|_| {
-        RepositoryError::Database(sqlx::Error::Decode("invalid URL".into()))
-    })?;
+    let id = Uuid::parse_str(&row.id)
+        .map_err(|_| RepositoryError::Database(sqlx::Error::Decode("invalid UUID".into())))?;
+    let url: url::Url = row
+        .url
+        .parse()
+        .map_err(|_| RepositoryError::Database(sqlx::Error::Decode("invalid URL".into())))?;
     let final_url = row
         .final_url
         .map(|u| u.parse())
@@ -101,7 +101,10 @@ fn row_to_domain(row: DownloadRow) -> Result<Download, RepositoryError> {
             last_modified: row.last_modified,
         },
         error_code: row.error_code.as_deref().and_then(str_to_error_code),
-        restart_notice: row.restart_notice.as_deref().and_then(str_to_restart_notice),
+        restart_notice: row
+            .restart_notice
+            .as_deref()
+            .and_then(str_to_restart_notice),
         retry_count: row.retry_count as u8,
         created_at: unix_to_datetime(row.created_at),
         updated_at: unix_to_datetime(row.updated_at),
@@ -136,9 +139,9 @@ fn str_to_restart_notice(s: &str) -> Option<RestartNotice> {
 }
 
 fn unix_to_datetime(ts: i64) -> OffsetDateTime {
-    OffsetDateTime::from_unix_timestamp(ts)
-        .unwrap_or_else(|_| OffsetDateTime::from_unix_timestamp(0)
-        .unwrap_or_else(|_| OffsetDateTime::now_utc()))
+    OffsetDateTime::from_unix_timestamp(ts).unwrap_or_else(|_| {
+        OffsetDateTime::from_unix_timestamp(0).unwrap_or_else(|_| OffsetDateTime::now_utc())
+    })
 }
 
 // ── Repository ──────────────────────────────────────────────────────────────
@@ -184,11 +187,10 @@ impl DownloadRepository for SqliteRepository {
     }
 
     async fn get(&self, id: Uuid) -> Result<Option<Download>, RepositoryError> {
-        let row: Option<DownloadRow> =
-            sqlx::query_as("SELECT * FROM downloads WHERE id = ?")
-                .bind(id.to_string())
-                .fetch_optional(&self.pool)
-                .await?;
+        let row: Option<DownloadRow> = sqlx::query_as("SELECT * FROM downloads WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
         row.map(row_to_domain).transpose()
     }
 
@@ -219,12 +221,11 @@ impl DownloadRepository for SqliteRepository {
         let mut tx = self.pool.begin().await?;
 
         // CAS: verify current status
-        let current: (String,) =
-            sqlx::query_as("SELECT status FROM downloads WHERE id = ?")
-                .bind(id.to_string())
-                .fetch_optional(&mut *tx)
-                .await?
-                .ok_or(RepositoryError::NotFound(id))?;
+        let current: (String,) = sqlx::query_as("SELECT status FROM downloads WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(RepositoryError::NotFound(id))?;
 
         let current_status = str_to_status(&current.0)?;
         if current_status != expected_from {
@@ -305,9 +306,9 @@ impl DownloadRepository for SqliteRepository {
 
         tx.commit().await?;
 
-        self.get(id).await.map(|opt| {
-            opt.ok_or(RepositoryError::NotFound(id))
-        })?
+        self.get(id)
+            .await
+            .map(|opt| opt.ok_or(RepositoryError::NotFound(id)))?
     }
 
     async fn record_flushed_offset(
@@ -364,11 +365,10 @@ impl DownloadRepository for SqliteRepository {
     }
 
     async fn read_setting(&self, key: SettingKey) -> Result<Option<String>, RepositoryError> {
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT value FROM settings WHERE key = ?")
-                .bind(key.as_str())
-                .fetch_optional(&self.pool)
-                .await?;
+        let row: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+            .bind(key.as_str())
+            .fetch_optional(&self.pool)
+            .await?;
         Ok(row.map(|r| r.0))
     }
 

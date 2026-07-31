@@ -80,7 +80,11 @@ impl DownloadEngine {
     }
 
     /// Create and persist a new download from a URL and destination path.
-    pub async fn create(&self, url_str: &str, directory: &std::path::Path) -> Result<Download, EngineError> {
+    pub async fn create(
+        &self,
+        url_str: &str,
+        directory: &std::path::Path,
+    ) -> Result<Download, EngineError> {
         let url: url::Url = url_str.parse().map_err(|_| EngineError::InvalidUrl)?;
         if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
             return Err(EngineError::InvalidUrl);
@@ -99,18 +103,22 @@ impl DownloadEngine {
             now,
         )?;
 
-        self.deps.repository.insert(&download).await.map_err(|e| {
-            EngineError::Database(sqlx::Error::Protocol(e.to_string()))
-        })?;
+        self.deps
+            .repository
+            .insert(&download)
+            .await
+            .map_err(|e| EngineError::Database(sqlx::Error::Protocol(e.to_string())))?;
 
         Ok(download)
     }
 
     /// List all downloads.
     pub async fn list(&self) -> Result<Vec<Download>, EngineError> {
-        self.deps.repository.list().await.map_err(|e| {
-            EngineError::Database(sqlx::Error::Protocol(e.to_string()))
-        })
+        self.deps
+            .repository
+            .list()
+            .await
+            .map_err(|e| EngineError::Database(sqlx::Error::Protocol(e.to_string())))
     }
 
     /// On startup: transition all running downloads to paused, return the list.
@@ -122,16 +130,20 @@ impl DownloadEngine {
 
     /// Get a single download by ID.
     pub async fn get(&self, id: Uuid) -> Result<Option<Download>, EngineError> {
-        self.deps.repository.get(id).await.map_err(|e| {
-            EngineError::Database(sqlx::Error::Protocol(e.to_string()))
-        })
+        self.deps
+            .repository
+            .get(id)
+            .await
+            .map_err(|e| EngineError::Database(sqlx::Error::Protocol(e.to_string())))
     }
 
     /// Remove a download record.
     pub async fn remove(&self, id: Uuid) -> Result<(), EngineError> {
-        self.deps.repository.remove(id).await.map_err(|e| {
-            EngineError::Database(sqlx::Error::Protocol(e.to_string()))
-        })
+        self.deps
+            .repository
+            .remove(id)
+            .await
+            .map_err(|e| EngineError::Database(sqlx::Error::Protocol(e.to_string())))
     }
 
     /// Expose the repository for direct access (used by Tauri adapter).
@@ -154,7 +166,11 @@ fn resolve_filename_from_url(url: &url::Url) -> String {
         Ok(parsed) => {
             let decoded = parsed.path();
             let name = decoded.rsplit('/').next().unwrap_or("download");
-            if name.is_empty() { "download".to_owned() } else { name.to_owned() }
+            if name.is_empty() {
+                "download".to_owned()
+            } else {
+                name.to_owned()
+            }
         }
         Err(_) => last_segment.to_owned(),
     }
