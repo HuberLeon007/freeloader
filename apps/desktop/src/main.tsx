@@ -37,7 +37,10 @@ function pct(item:Item):number { return item.status==="completed"?100:item.total
 function eta(item:Item):string { if(item.status!=="downloading"||item.total===null||item.speed<=0)return "--"; const seconds=Math.max(0,Math.round((item.total-item.downloaded)/item.speed)); return seconds<60?`${seconds}s left`:seconds<3600?`${Math.round(seconds/60)}m left`:`${(seconds/3600).toFixed(1)}h left`; }
 function joinPath(dir:string,name:string):string { const win=dir.includes("\\")&&!dir.includes("/"); return `${dir.replace(/[\\/]+$/g,"")}${win?"\\":"/"}${name}`; }
 function parent(path:string):string { const i=Math.max(path.lastIndexOf("/"),path.lastIndexOf("\\")); return i>0?path.slice(0,i):path; }
-function filename(raw:string):string { try { const parsed=new URL(raw); const part=parsed.pathname.split("/").filter(Boolean).pop(); const decoded=part?decodeURIComponent(part):""; return decoded&&decoded!=="."&&decoded!==".."&&!decoded.includes("/")&&!decoded.includes("\\")?decoded:parsed.hostname||"download"; } catch { return "download"; } }
+/** Max filename length so the full path stays under Windows MAX_PATH (260).
+ *  We keep 100 chars for the name + 160 for directory + \.part = under 260. */
+const MAX_FILENAME = 100;
+function filename(raw:string):string { try { const parsed=new URL(raw); const part=parsed.pathname.split("/").filter(Boolean).pop(); const decoded=part?decodeURIComponent(part):""; let name=decoded&&decoded!=="."&&decoded!==".."&&!decoded.includes("/")&&!decoded.includes("\\")?decoded:parsed.hostname||"download"; if(name.length>MAX_FILENAME){const dot=name.lastIndexOf(".");const ext=dot>0?name.slice(dot):"";const stem=name.slice(0,Math.max(0,MAX_FILENAME-ext.length));name=stem+ext;} return name; } catch { return "download"; } }
 function extension(name:string):string { const i=name.lastIndexOf("."); return i>0?name.slice(i+1, i+5).toLowerCase():"file"; }
 /** Register a Tauri event listener that degrades to a no-op outside the webview. */
 function safeListen<T>(event:string,handler:(payload:T)=>void):Promise<()=>void>{return listen<T>(event,e=>handler(e.payload)).catch(()=>()=>{});}

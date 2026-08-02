@@ -105,24 +105,21 @@ async fn add_download(
     state: State<'_, AppState>,
     input: AddDownloadInput,
 ) -> Result<DownloadResult, String> {
-    let destination = PathBuf::from(&input.destination_path);
-    if destination
+    let requested = PathBuf::from(&input.destination_path);
+    if requested
         .components()
         .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
     {
         return Err("destination path must not contain `..` or `.` segments".to_owned());
     }
-    let directory = destination
+    let directory = requested
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
-    let filename = destination
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("download")
-        .to_owned();
 
+    // The engine resolves and sanitises the filename internally so we never
+    // pass a 400-char URL segment straight to the filesystem (os error 123).
     let download = state
         .engine
         .create(&input.url, &directory)
@@ -130,6 +127,13 @@ async fn add_download(
         .map_err(|e| e.to_string())?;
     let download_id = download.id;
     let id_str = download_id.to_string();
+    let safe_destination = download.destination.clone();
+    let safe_filename = download
+        .destination
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("download")
+        .to_owned();
     let event_id = input.client_request_id;
     let requested_url = input.url;
     let pool = state.pool.clone();
@@ -175,7 +179,7 @@ async fn add_download(
     tauri::async_runtime::spawn(async move {
         let result = match SingleStreamDownloader::new(pool) {
             Ok(downloader) => downloader
-                .download(&requested_url, &output_directory, &filename, tx.clone(), cancel)
+                .download(&requested_url, &output_directory, &safe_filename, tx.clone(), cancel)
                 .await,
             Err(error) => Err(error),
         };
@@ -215,7 +219,7 @@ async fn add_download(
     });
 
     Ok(DownloadResult {
-        path: destination.to_string_lossy().to_string(),
+        path: safe_destination.to_string_lossy().to_string(),
         id: id_str,
     })
 }

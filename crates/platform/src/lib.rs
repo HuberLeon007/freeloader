@@ -106,13 +106,33 @@ const BROWSERS: &[(&str, &str, &[&str], &[&str])] = &[
 ///
 /// `LOCALAPPDATA` covers per-user installs, which is where Chrome, Brave and
 /// Vivaldi land when installed without administrator rights.
+/// `ProgramFiles` and `ProgramFiles(x86)` cover system-wide installs.
+/// When an env var is missing we fall back to the most common real paths so
+/// detection works even in stripped-down environments.
 fn install_roots() -> Vec<PathBuf> {
     if cfg!(target_os = "windows") {
-        ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"]
-            .into_iter()
-            .filter_map(env::var_os)
+        let mut roots: Vec<PathBuf> = Vec::new();
+        // Env-var-based roots.
+        for var in ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"] {
+            if let Some(value) = env::var_os(var) {
+                roots.push(PathBuf::from(value));
+            }
+        }
+        // Hard-coded fallbacks so detection still works when env vars are
+        // not set (e.g. running from a service or sandbox).
+        let drive = env::var_os("SystemDrive")
             .map(PathBuf::from)
-            .collect()
+            .unwrap_or_else(|| PathBuf::from("C:"));
+        for fallback in [
+            "Program Files",
+            "Program Files (x86)",
+        ] {
+            let candidate = drive.join(fallback);
+            if candidate.is_dir() && !roots.contains(&candidate) {
+                roots.push(candidate);
+            }
+        }
+        roots
     } else {
         Vec::new()
     }
