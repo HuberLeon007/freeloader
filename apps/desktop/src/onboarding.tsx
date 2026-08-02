@@ -16,6 +16,7 @@ import {
   Sun,
 } from "lucide-react";
 import type { ThemeMode } from "./theme";
+import "./onboarding.css";
 
 type Suggestion = { label: string; path: string; hint: string };
 type DirectoryReport = { path: string; exists: boolean; writable: boolean };
@@ -107,7 +108,9 @@ export function Onboarding(props: Props): React.JSX.Element {
 
   const step = STEPS[index] ?? INTRO;
   const last = index === STEPS.length - 1;
-  const blocked = step.id === "location" && report !== null && !report.writable;
+  const blocked =
+    step.id === "location" &&
+    (destination.trim().length === 0 || report === null || (report !== null && !report.writable));
 
   useEffect(() => {
     if (seeded.current) return;

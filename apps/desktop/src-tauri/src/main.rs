@@ -16,9 +16,10 @@ use freeloader_download_core::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
+use uuid::Uuid;
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::watch;
 
@@ -105,6 +106,12 @@ async fn add_download(
     input: AddDownloadInput,
 ) -> Result<DownloadResult, String> {
     let destination = PathBuf::from(&input.destination_path);
+    if destination
+        .components()
+        .any(|c| matches!(c, Component::ParentDir | Component::CurDir))
+    {
+        return Err("destination path must not contain `..` or `.` segments".to_owned());
+    }
     let directory = destination
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -132,11 +139,26 @@ async fn add_download(
         downloaded: 0,
         total: download.total,
     });
+    let cancel = tokio_util::sync::CancellationToken::new();
+    state
+        .engine
+        .track(download_id, cancel.clone(), tx.clone())
+        .await;
+
     let progress_handle = app.clone();
     let progress_id = event_id.clone();
     tauri::async_runtime::spawn(async move {
+        // The downloader publishes on every chunk; forward at most five events
+        // per second so the webview is not flooded during fast transfers.
+        let mut last_emit: Option<std::time::Instant> = None;
         while rx.changed().await.is_ok() {
             let prog = rx.borrow().clone();
+            let now = std::time::Instant::now();
+            let due = last_emit.is_none_or(|prev| now.duration_since(prev) >= std::time::Duration::from_millis(200));
+            if !due {
+                continue;
+            }
+            last_emit = Some(now);
             let dto = ProgressDto {
                 id: progress_id.clone(),
                 downloaded: prog.downloaded,
@@ -153,11 +175,15 @@ async fn add_download(
     tauri::async_runtime::spawn(async move {
         let result = match SingleStreamDownloader::new(pool) {
             Ok(downloader) => downloader
-                .download(&requested_url, &output_directory, &filename, tx.clone())
-                .await
-                .map_err(|error| error.to_string()),
-            Err(error) => Err(error.to_string()),
+                .download(&requested_url, &output_directory, &filename, tx.clone(), cancel)
+                .await,
+            Err(error) => Err(error),
         };
+        let _ = transfer_handle
+            .state::<AppState>()
+            .engine
+            .untrack(download_id)
+            .await;
 
         match result {
             Ok(record) => {
@@ -174,12 +200,14 @@ async fn add_download(
                     },
                 );
             }
-            Err(message) => {
+            // A cancel is initiated by the UI removing the row; nothing to report.
+            Err(freeloader_download_core::EngineError::Cancelled) => {}
+            Err(error) => {
                 let _ = transfer_handle.emit(
                     "download-error",
                     DownloadErrorEvent {
                         id: error_id,
-                        message,
+                        message: error.to_string(),
                     },
                 );
             }
@@ -285,6 +313,15 @@ async fn pick_download_dir(app: AppHandle) -> Result<Option<String>, String> {
     Ok(folder.map(|value| value.to_string()))
 }
 
+/// Cancel an in-flight transfer by its engine id. Safe to call for ids that
+/// are not running; it simply reports success.
+#[tauri::command]
+async fn cancel_download(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    let id = Uuid::parse_str(&id).map_err(|error| error.to_string())?;
+    let _ = state.engine.cancel(id).await;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -329,6 +366,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             add_download,
+            cancel_download,
             create_directory,
             default_download_dir,
             detect_browsers,

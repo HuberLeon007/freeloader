@@ -50,6 +50,10 @@ pub enum EngineError {
     #[error("path escapes the download directory")]
     UnsafePath,
 
+    /// The transfer was cancelled by the user.
+    #[error("transfer cancelled")]
+    Cancelled,
+
     /// A network transport error occurred.
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),
@@ -250,6 +254,7 @@ impl SingleStreamDownloader {
         directory: &Path,
         filename: &str,
         progress: watch::Sender<Progress>,
+        cancel: tokio_util::sync::CancellationToken,
     ) -> Result<DownloadRecord, EngineError> {
         let parsed = url::Url::parse(url).map_err(|_| EngineError::InvalidUrl)?;
         if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
@@ -280,15 +285,23 @@ impl SingleStreamDownloader {
             .await?;
         let id = Uuid::now_v7();
         let mut downloaded = 0_u64;
-        while let Some(chunk) = stream.next().await {
-            let bytes = chunk?;
-            file.write_all(&bytes).await?;
-            downloaded += bytes.len() as u64;
-            let _ = progress.send(Progress {
-                id,
-                downloaded,
-                total,
-            });
+        loop {
+            tokio::select! {
+                _ = cancel.cancelled() => {
+                    drop(file);
+                    let _ = fs::remove_file(&temporary).await;
+                    return Err(EngineError::Cancelled);
+                }
+                chunk = stream.next() => match chunk {
+                    Some(Ok(bytes)) => {
+                        file.write_all(&bytes).await?;
+                        downloaded += bytes.len() as u64;
+                        let _ = progress.send(Progress { id, downloaded, total });
+                    }
+                    Some(Err(error)) => return Err(error.into()),
+                    None => break,
+                },
+            }
         }
         file.flush().await?;
         file.sync_all().await?;
@@ -343,6 +356,42 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.from, DownloadStatus::Created);
         assert_eq!(err.to, DownloadStatus::Completed);
+    }
+
+    #[test]
+    fn state_machine_allows_cancellation_from_active_states() {
+        // Created, Validating, Queued, and Downloading can all be cancelled.
+        assert!(DownloadStatus::Created.can_transition_to(DownloadStatus::Cancelled));
+        assert!(DownloadStatus::Validating.can_transition_to(DownloadStatus::Cancelled));
+        assert!(DownloadStatus::Queued.can_transition_to(DownloadStatus::Cancelled));
+        assert!(DownloadStatus::Downloading.can_transition_to(DownloadStatus::Cancelled));
+        assert!(DownloadStatus::Paused.can_transition_to(DownloadStatus::Cancelled));
+        assert!(DownloadStatus::Retrying.can_transition_to(DownloadStatus::Cancelled));
+    }
+
+    #[test]
+    fn state_machine_rejects_cancellation_from_terminal_states() {
+        // Completed, Failed, and Cancelled are terminal.
+        assert!(!DownloadStatus::Completed.can_transition_to(DownloadStatus::Cancelled));
+        assert!(!DownloadStatus::Failed.can_transition_to(DownloadStatus::Cancelled));
+        assert!(!DownloadStatus::Cancelled.can_transition_to(DownloadStatus::Cancelled));
+        // Nothing can transition out of Cancelled.
+        assert!(!DownloadStatus::Cancelled.can_transition_to(DownloadStatus::Completed));
+        assert!(!DownloadStatus::Cancelled.can_transition_to(DownloadStatus::Failed));
+    }
+
+    #[test]
+    fn state_machine_cancelled_flow() {
+        let cancelled = DownloadStatus::Created
+            .try_transition(DownloadStatus::Validating)
+            .expect("valid")
+            .try_transition(DownloadStatus::Queued)
+            .expect("valid")
+            .try_transition(DownloadStatus::Downloading)
+            .expect("valid")
+            .try_transition(DownloadStatus::Cancelled)
+            .expect("valid");
+        assert_eq!(cancelled, DownloadStatus::Cancelled);
     }
 
     #[test]

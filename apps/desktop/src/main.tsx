@@ -8,18 +8,19 @@ import {
   LoaderCircle, Monitor, Moon, RotateCcw, Search, Settings, Sun, Trash2, X, Zap,
 } from "lucide-react";
 import { Onboarding } from "./onboarding";
+import { THEME_KEY, readTheme, resolveTheme } from "./theme";
 import type { ThemeMode } from "./theme";
 import "./styles.css";
 
 type Status = "queued" | "downloading" | "completed" | "failed";
 type ViewKey = "all" | "active" | "completed" | "failed";
-type Item = { id:string; url:string; name:string; status:Status; downloaded:number; total:number|null; destination:string; speed:number; error:string|null };
+type Item = { id:string; engineId?:string; url:string; name:string; status:Status; downloaded:number; total:number|null; destination:string; speed:number; error:string|null };
 type Progress = { id:string; downloaded:number; total:number|null };
 type Complete = { id:string; path:string };
 type Failure = { id:string; message:string };
 
-const THEME_KEY = "freeloader.theme";
 const ONBOARDING_KEY = "freeloader.onboarding.v2";
+const ONBOARDING_MIGRATED_KEY = "freeloader.onboarding.v3-migrated";
 const DESTINATION_KEY = "freeloader.destination";
 const RELEASES_URL = "https://github.com/HuberLeon007/freeloader/releases";
 const UNITS = ["B","KB","MB","GB","TB"] as const;
@@ -33,22 +34,22 @@ function pct(item:Item):number { return item.status==="completed"?100:item.total
 function eta(item:Item):string { if(item.status!=="downloading"||item.total===null||item.speed<=0)return "--"; const seconds=Math.max(0,Math.round((item.total-item.downloaded)/item.speed)); return seconds<60?`${seconds}s left`:seconds<3600?`${Math.round(seconds/60)}m left`:`${(seconds/3600).toFixed(1)}h left`; }
 function joinPath(dir:string,name:string):string { const win=dir.includes("\\")&&!dir.includes("/"); return `${dir.replace(/[\\/]+$/g,"")}${win?"\\":"/"}${name}`; }
 function parent(path:string):string { const i=Math.max(path.lastIndexOf("/"),path.lastIndexOf("\\")); return i>0?path.slice(0,i):path; }
-function filename(raw:string):string { try { const parsed=new URL(raw); const part=parsed.pathname.split("/").filter(Boolean).pop(); return decodeURIComponent(part||"")||parsed.hostname||"download"; } catch { return "download"; } }
+function filename(raw:string):string { try { const parsed=new URL(raw); const part=parsed.pathname.split("/").filter(Boolean).pop(); const decoded=part?decodeURIComponent(part):""; return decoded&&decoded!=="."&&decoded!==".."&&!decoded.includes("/")&&!decoded.includes("\\")?decoded:parsed.hostname||"download"; } catch { return "download"; } }
 function extension(name:string):string { const i=name.lastIndexOf("."); return i>0?name.slice(i+1, i+5).toLowerCase():"file"; }
-function themeFrom(mode:ThemeMode):"dark"|"light" { if(mode!=="system")return mode; return window.matchMedia?.("(prefers-color-scheme: dark)").matches?"dark":"light"; }
-function storedTheme():ThemeMode { const value=localStorage.getItem(THEME_KEY); return value==="dark"||value==="light"||value==="system"?value:"system"; }
+/** Register a Tauri event listener that degrades to a no-op outside the webview. */
+function safeListen<T>(event:string,handler:(payload:T)=>void):Promise<()=>void>{return listen<T>(event,e=>handler(e.payload)).catch(()=>()=>{});}
 function icon(key:ViewKey):React.JSX.Element { if(key==="active")return <Zap size={15}/>; if(key==="completed")return <CheckCircle2 size={15}/>; if(key==="failed")return <CircleAlert size={15}/>; return <Inbox size={15}/>; }
 function Status({item}:{item:Item}):React.JSX.Element { if(item.status==="completed")return <span className="pill pill-done"><Check size={12}/>Done</span>; if(item.status==="failed")return <span className="pill pill-failed"><CircleAlert size={12}/>Failed</span>; if(item.status==="downloading")return <span className="pill pill-active"><LoaderCircle className="spin" size={12}/>Downloading</span>; return <span className="pill">Queued</span>; }
 
 function App():React.JSX.Element {
-  const [themeMode,setThemeMode]=useState<ThemeMode>(storedTheme);
+  const [themeMode,setThemeMode]=useState<ThemeMode>(readTheme);
   const [onboarding,setOnboarding]=useState(()=>localStorage.getItem(ONBOARDING_KEY)!=="done");
   const [destination,setDestination]=useState(()=>localStorage.getItem(DESTINATION_KEY)||"");
   const [systemFolder,setSystemFolder]=useState("");
   const [view,setView]=useState<ViewKey>("all"); const [query,setQuery]=useState(""); const [url,setUrl]=useState("");
   const [items,setItems]=useState<Item[]>([]); const [notice,setNotice]=useState<string|null>(null); const [busy,setBusy]=useState(false); const [settings,setSettings]=useState(false); const [browsers,setBrowsers]=useState<string[]>([]);
   const urlRef=useRef<HTMLInputElement>(null); const filterRef=useRef<HTMLInputElement>(null); const dialogRef=useRef<HTMLDialogElement>(null); const samples=useRef(new Map<string,{at:number; bytes:number}>());
-  const theme=themeFrom(themeMode); const valid=/^https?:\/\/[^\s]+$/i.test(url.trim());
+  const theme=resolveTheme(themeMode); const valid=/^https?:\/\/[^\s]+$/i.test(url.trim());
   const counts=useMemo(()=>({all:items.length,active:items.filter(i=>i.status==="queued"||i.status==="downloading").length,completed:items.filter(i=>i.status==="completed").length,failed:items.filter(i=>i.status==="failed").length}),[items]);
   const visible=useMemo(()=>{const needle=query.trim().toLowerCase();return items.filter(i=>{const inView=view==="all"||(view==="active"&&(i.status==="queued"||i.status==="downloading"))||(view===i.status);return inView&&(!needle||i.name.toLowerCase().includes(needle)||i.url.toLowerCase().includes(needle));});},[items,query,view]);
   const destinationLabel=destination||"Choose a folder";
@@ -57,16 +58,16 @@ function App():React.JSX.Element {
   useEffect(()=>{localStorage.setItem(THEME_KEY,themeMode);},[themeMode]);
   useEffect(()=>{if(destination)localStorage.setItem(DESTINATION_KEY,destination);},[destination]);
   useEffect(()=>{let cancelled=false;void invoke<string>("default_download_dir").then(path=>{if(cancelled)return;setSystemFolder(path);setDestination(current=>current||path);}).catch(()=>undefined);return()=>{cancelled=true;};},[]);
-  useEffect(()=>{const progress=listen<Progress>("download-progress",event=>{const p=event.payload;const now=Date.now();const previous=samples.current.get(p.id);samples.current.set(p.id,{at:now,bytes:p.downloaded});const instant=previous&&now>previous.at?(p.downloaded-previous.bytes)/((now-previous.at)/1000):0;setItems(current=>current.map(item=>item.id===p.id?{...item,status:"downloading",downloaded:p.downloaded,total:p.total,speed:instant>0?item.speed*.7+instant*.3:item.speed}:item));});const complete=listen<Complete>("download-complete",event=>{const p=event.payload;samples.current.delete(p.id);setItems(current=>current.map(item=>item.id===p.id?{...item,status:"completed",destination:p.path,total:item.total??item.downloaded,speed:0,error:null}:item));});const failed=listen<Failure>("download-error",event=>{const p=event.payload;samples.current.delete(p.id);setItems(current=>current.map(item=>item.id===p.id?{...item,status:"failed",speed:0,error:p.message}:item));setNotice(p.message);});return()=>{void progress.then(f=>f());void complete.then(f=>f());void failed.then(f=>f());};},[]);
+  useEffect(()=>{const progress=safeListen<Progress>("download-progress",p=>{const now=Date.now();const previous=samples.current.get(p.id);samples.current.set(p.id,{at:now,bytes:p.downloaded});const instant=previous&&now>previous.at?(p.downloaded-previous.bytes)/((now-previous.at)/1000):0;setItems(current=>current.map(item=>item.id===p.id&&(item.status==="completed"||item.status==="failed")?item:{...item,status:"downloading",downloaded:p.downloaded,total:p.total,speed:instant>0?item.speed*.7+instant*.3:item.speed}));});const complete=safeListen<Complete>("download-complete",p=>{samples.current.delete(p.id);setItems(current=>current.map(item=>item.id===p.id?{...item,status:"completed",destination:p.path,total:item.total??item.downloaded,speed:0,error:null}:item));});const failed=safeListen<Failure>("download-error",p=>{samples.current.delete(p.id);setItems(current=>current.map(item=>item.id===p.id?{...item,status:"failed",speed:0,error:p.message}:item));setNotice(p.message);});return()=>{void progress.then(f=>f());void complete.then(f=>f());void failed.then(f=>f());};},[]);
   useEffect(()=>{const key=(event:KeyboardEvent)=>{const target=event.target;const typing=target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="n"){event.preventDefault();urlRef.current?.focus();}if(event.key==="/"&&!typing){event.preventDefault();filterRef.current?.focus();}};window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key);},[]);
   useEffect(()=>{const node=dialogRef.current;if(!node)return;if(settings&&!node.open){node.showModal();void detect();}if(!settings&&node.open)node.close();},[settings]);
 
   const detect=useCallback(async()=>{try{const found=await invoke<string[]>("detect_browsers");setBrowsers(found.map(v=>v.toLowerCase()));}catch{setBrowsers([]);}},[]);
   const browse=useCallback(async()=>{setNotice(null);try{const chosen=await invoke<string|null>("pick_download_dir");if(chosen)setDestination(chosen);}catch(cause){const detail=typeof cause==="string"?cause:cause instanceof Error?cause.message:"Unknown native dialog error";setNotice(`Folder picker failed: ${detail}. You can still enter a path manually.`);}},[]);
-  const start=useCallback(async()=>{const raw=url.trim();if(!/^https?:\/\/[^\s]+$/i.test(raw)||busy)return;setBusy(true);setNotice(null);const name=filename(raw);const base=destination||systemFolder||"Downloads";const id=crypto.randomUUID();const target=joinPath(base,name);setItems(current=>[{id,url:raw,name,status:"queued",downloaded:0,total:null,destination:target,speed:0,error:null},...current]);setUrl("");try{const result=await invoke<{id:string;path:string}>("add_download",{input:{url:raw,destinationPath:target,clientRequestId:id}});setItems(current=>current.map(item=>item.id===id?{...item,destination:result.path}:item));}catch(cause){const message=typeof cause==="string"?cause:cause instanceof Error?cause.message:"Could not start the download.";setItems(current=>current.map(item=>item.id===id?{...item,status:"failed",error:message}:item));setNotice(message);}finally{setBusy(false);}},[busy,destination,systemFolder,url]);
-  const finish=useCallback(()=>{localStorage.setItem(ONBOARDING_KEY,"done");setOnboarding(false);},[]);
+  const start=useCallback(async()=>{const raw=url.trim();if(!/^https?:\/\/[^\s]+$/i.test(raw)||busy)return;setBusy(true);setNotice(null);const name=filename(raw);const base=destination||systemFolder||"Downloads";const id=crypto.randomUUID();const target=joinPath(base,name);setItems(current=>[{id,url:raw,name,status:"queued",downloaded:0,total:null,destination:target,speed:0,error:null},...current]);setUrl("");try{const result=await invoke<{id:string;path:string}>("add_download",{input:{url:raw,destinationPath:target,clientRequestId:id}});setItems(current=>current.map(item=>item.id===id?{...item,destination:result.path,engineId:result.id}:item));}catch(cause){const message=typeof cause==="string"?cause:cause instanceof Error?cause.message:"Could not start the download.";setItems(current=>current.map(item=>item.id===id?{...item,status:"failed",error:message}:item));setNotice(message);}finally{setBusy(false);}},[busy,destination,systemFolder,url]);
+  const finish=useCallback(()=>{localStorage.setItem(ONBOARDING_KEY,"done");localStorage.setItem(ONBOARDING_MIGRATED_KEY,"1");setOnboarding(false);},[]);
   const pickTheme=useCallback((mode:ThemeMode)=>setThemeMode(mode),[]);
-  const remove=(id:string)=>setItems(current=>current.filter(item=>item.id!==id));
+  const remove=(id:string)=>{const item=items.find(entry=>entry.id===id);samples.current.delete(id);if(item&&(item.status==="queued"||item.status==="downloading")&&item.engineId){void invoke("cancel_download",{id:item.engineId}).catch(()=>undefined);}setItems(current=>current.filter(entry=>entry.id!==id));};
   const reveal=async(item:Item)=>{try{await invoke("open_in_file_manager",{path:parent(item.destination)});}catch(cause){setNotice(`Could not open the folder: ${String(cause)}`);}};
 
   if(onboarding)return <Onboarding destination={destination} onDestinationChange={setDestination} themeMode={themeMode} onThemeChange={pickTheme} onFinish={finish}/>;
