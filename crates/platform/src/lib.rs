@@ -48,34 +48,114 @@ pub fn app_data_dir() -> PathBuf {
     }
 }
 
+/// Browsers worth looking for: stable key, display name, executable names to
+/// try on `PATH`, and paths relative to an installation root.
+///
+/// Windows browsers are almost never on `PATH`, so the relative paths carry
+/// the detection there; on Unix `PATH` carries it and the relative list is
+/// empty.
+#[cfg(target_os = "windows")]
+const BROWSERS: &[(&str, &str, &[&str], &[&str])] = &[
+    (
+        "firefox",
+        "Firefox",
+        &["firefox.exe"],
+        &[r"Mozilla Firefox\firefox.exe"],
+    ),
+    (
+        "chrome",
+        "Google Chrome",
+        &["chrome.exe"],
+        &[r"Google\Chrome\Application\chrome.exe"],
+    ),
+    (
+        "edge",
+        "Microsoft Edge",
+        &["msedge.exe"],
+        &[r"Microsoft\Edge\Application\msedge.exe"],
+    ),
+    (
+        "brave",
+        "Brave",
+        &["brave.exe"],
+        &[r"BraveSoftware\Brave-Browser\Application\brave.exe"],
+    ),
+    (
+        "vivaldi",
+        "Vivaldi",
+        &["vivaldi.exe"],
+        &[r"Vivaldi\Application\vivaldi.exe"],
+    ),
+];
+
+#[cfg(not(target_os = "windows"))]
+const BROWSERS: &[(&str, &str, &[&str], &[&str])] = &[
+    ("firefox", "Firefox", &["firefox"], &[]),
+    (
+        "chrome",
+        "Google Chrome",
+        &["google-chrome", "google-chrome-stable", "chromium"],
+        &[],
+    ),
+    ("edge", "Microsoft Edge", &["microsoft-edge"], &[]),
+    ("brave", "Brave", &["brave-browser"], &[]),
+    ("vivaldi", "Vivaldi", &["vivaldi"], &[]),
+];
+
+/// Roots that hold browser installations outside `PATH`.
+///
+/// `LOCALAPPDATA` covers per-user installs, which is where Chrome, Brave and
+/// Vivaldi land when installed without administrator rights.
+fn install_roots() -> Vec<PathBuf> {
+    if cfg!(target_os = "windows") {
+        ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"]
+            .into_iter()
+            .filter_map(env::var_os)
+            .map(PathBuf::from)
+            .collect()
+    } else {
+        Vec::new()
+    }
+}
+
+/// First existing executable, searching `PATH` before the installation roots.
+fn locate(executables: &[&str], relative: &[&str]) -> Option<PathBuf> {
+    let on_path = env::var_os("PATH").and_then(|value| {
+        let directories: Vec<PathBuf> = env::split_paths(&value).collect();
+        executables.iter().find_map(|executable| {
+            directories
+                .iter()
+                .map(|directory| directory.join(executable))
+                .find(|candidate| candidate.is_file())
+        })
+    });
+    on_path.or_else(|| {
+        let roots = install_roots();
+        relative.iter().find_map(|suffix| {
+            roots
+                .iter()
+                .map(|root| root.join(suffix))
+                .find(|candidate| candidate.is_file())
+        })
+    })
+}
+
 /// Detect well-known browsers using filesystem and environment checks only.
 pub fn detect_browsers() -> Vec<BrowserCandidate> {
-    let candidates = [
-        ("firefox", "Firefox", "firefox"),
-        ("chrome", "Google Chrome", "google-chrome"),
-        ("edge", "Microsoft Edge", "microsoft-edge"),
-        ("brave", "Brave", "brave-browser"),
-        ("vivaldi", "Vivaldi", "vivaldi"),
-    ];
-    candidates
-        .into_iter()
-        .filter_map(|(key, name, executable)| {
-            let path = env::var_os("PATH").and_then(|value| {
-                env::split_paths(&value)
-                    .map(|directory| directory.join(executable))
-                    .find(|candidate| candidate.is_file())
-            })?;
+    BROWSERS
+        .iter()
+        .filter_map(|(key, name, executables, relative)| {
             Some(BrowserCandidate {
                 key,
                 name,
-                executable: path,
+                executable: locate(executables, relative)?,
                 sandboxed: false,
             })
         })
         .collect()
 }
 
-/// Detect browser families available on PATH.
+/// Detect installed browser families, deduplicated by engine.
 pub fn detect_browsers_in_path() -> Vec<Browser> {
     let candidates = detect_browsers();
     let mut result = Vec::new();
@@ -124,5 +204,25 @@ mod tests {
     #[test]
     fn browser_detection_is_safe() {
         let _ = detect_browsers_in_path();
+    }
+    #[test]
+    fn browser_detection_reports_each_browser_once() {
+        let found = detect_browsers();
+        for candidate in &found {
+            assert_eq!(
+                found.iter().filter(|other| other.key == candidate.key).count(),
+                1,
+                "duplicate entry for {}",
+                candidate.key
+            );
+            assert!(candidate.executable.is_file());
+        }
+    }
+    #[test]
+    fn browser_table_lists_windows_install_paths() {
+        // The Windows table must carry install-relative paths; PATH alone does
+        // not find browsers there.
+        let relative_total: usize = BROWSERS.iter().map(|(_, _, _, rel)| rel.len()).sum();
+        assert_eq!(relative_total > 0, cfg!(target_os = "windows"));
     }
 }
