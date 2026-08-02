@@ -195,6 +195,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn contained_paths_sit_directly_under_the_canonical_root() {
+        // Regression: on Windows `canonicalize` yields `\\?\D:\…` while a
+        // plainly joined path does not, so a parent/root comparison between the
+        // two forms wrongly reported an escape.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = tokio::fs::canonicalize(dir.path())
+            .await
+            .expect("canonicalize");
+        let contained = resolve_safe_path(dir.path(), "file.bin")
+            .await
+            .expect("contained");
+        assert_eq!(contained.destination.parent(), Some(root.as_path()));
+        assert_eq!(contained.temporary.parent(), Some(root.as_path()));
+    }
+
+    #[tokio::test]
     async fn resolve_unique_avoids_collision() {
         let dir = tempfile::tempdir().expect("tempdir");
         // Create the first file.

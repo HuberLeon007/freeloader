@@ -260,20 +260,16 @@ impl SingleStreamDownloader {
         if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
             return Err(EngineError::InvalidUrl);
         }
-        fs::create_dir_all(directory).await?;
         use freeloader_protocol::sanitize_filename;
 
         let outcome = sanitize_filename(filename);
         let clean = outcome.filename;
-        let destination = directory.join(&clean);
-        let root = fs::canonicalize(directory).await?;
-        if !destination
-            .parent()
-            .is_some_and(|parent| parent.starts_with(&root))
-        {
-            return Err(EngineError::UnsafePath);
-        }
-        let temporary = destination.with_file_name(format!("{}.part", clean));
+        // `containment` resolves both sides against the canonical directory, so
+        // the comparison is not thrown off by Windows extended-length prefixes
+        // (`\\?\D:\…`) or by symlinks pointing out of the directory.
+        let contained = containment::resolve_safe_path(directory, &clean).await?;
+        let destination = contained.destination;
+        let temporary = contained.temporary;
         let response = self.client.get(url).send().await?.error_for_status()?;
         let total = response.content_length();
         let mut stream = response.bytes_stream();
