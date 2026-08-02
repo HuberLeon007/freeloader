@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "io.freeloader.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm --filter freeloader-desktop dev",
     "beforeBuildCommand": "pnpm build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
