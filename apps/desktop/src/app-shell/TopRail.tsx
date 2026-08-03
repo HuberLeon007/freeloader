@@ -1,0 +1,1 @@
+import type{ReactNode}from'react';export function TopRail({title,actions}:{title:string;actions?:ReactNode}){return <header className="fl-top-rail"><h1>{title}</h1>{actions}</header>}

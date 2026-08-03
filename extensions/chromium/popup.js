@@ -2,7 +2,6 @@
 const HOST = "io.freeloader.host";
 const status = document.getElementById("status");
 const list = document.getElementById("links");
-
 document.getElementById("scan").addEventListener("click", async () => {
   list.replaceChildren();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

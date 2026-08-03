@@ -1,0 +1,1 @@
+export function filterLinks(links){const seen=new Set();return links.filter(raw=>{try{const url=new URL(raw);if(!/^https?:$/.test(url.protocol))return false;const key=url.toString();if(seen.has(key))return false;seen.add(key);return true}catch{return false}})}

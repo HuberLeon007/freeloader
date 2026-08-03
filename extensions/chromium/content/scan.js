@@ -1,0 +1,1 @@
+export function scanPage(){return [...document.querySelectorAll('a[href]')].map(anchor=>anchor.href).filter(Boolean)}

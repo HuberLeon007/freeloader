@@ -14,13 +14,18 @@ Entries are grouped as Added, Changed, Deprecated, Removed, Fixed and Security. 
 - `docs/adr/0002-rustls-only.md` and `docs/adr/0006-dependency-licence-policy.md`, the two decisions `deny.toml` refers to.
 - A `package.json` for `extensions/chromium` and `extensions/firefox`, so both are real pnpm packages.
 - `.gitattributes`, so line endings are normalised for every clone: LF everywhere, CRLF for `ps1`, `bat`, `cmd`, `nsi` and `nsh`.
+- Quiet local-first desktop shell foundations, queue model, paste-many composer, adapter registry, settings, diagnostics, onboarding seams, and browser extension entry points.
 
 ### Changed
 
-- `docs/implementation-status.md` is valid Markdown again and names the features deferred to a later spec.
+- `docs/implementation-status.md` records the vertical-slice implementation status and the features deferred to a later spec.
 - `pnpm-workspace.yaml` lists only directories that contain a `package.json`; the non-existent `extensions/shared` entry is gone.
 - `.gitignore` excludes `*.exe`, so build output cannot be committed by accident.
 - `deny.toml` states the licence policy explicitly, bans `openssl`, `openssl-sys` and `native-tls`, and points at the two ADRs that explain both decisions.
+
+### Security
+
+- Cookie and credential forwarding remain explicitly refused. Extension messaging must not read or forward cookies, passwords, history, or profiles.
 
 ## Notes
 

@@ -1,0 +1,1 @@
+import type{PropsWithChildren}from'react';export function Surface({children}:{children:PropsWithChildren['children']}){return <section className="fl-surface">{children}</section>}
