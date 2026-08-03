@@ -1,0 +1,2 @@
+import type { PropsWithChildren, ReactNode } from 'react';
+export function OnboardingStep({title,description,children,footer}:{title:string;description:string;children:ReactNode;footer?:ReactNode}){return <section aria-labelledby="onboarding-step-title"><p className="kicker">Setup</p><h1 id="onboarding-step-title" tabIndex={-1}>{title}</h1><p className="lede">{description}</p><div>{children}</div>{footer&&<footer>{footer}</footer>}</section>}
