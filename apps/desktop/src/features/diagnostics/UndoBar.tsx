@@ -1,0 +1,1 @@
+export function UndoBar({message,onUndo}:{message:string;onUndo:()=>void}){return <div role="status" aria-live="polite">{message}<button type="button" onClick={onUndo}>Undo</button></div>}

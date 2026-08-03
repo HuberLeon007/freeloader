@@ -1,0 +1,1 @@
+import type{ReactNode}from'react';export function OnboardingStep({title,description,children}:{title:string;description:string;children:ReactNode}){return <section aria-labelledby="step-title"><h1 id="step-title" tabIndex={-1}>{title}</h1><p>{description}</p>{children}</section>}
