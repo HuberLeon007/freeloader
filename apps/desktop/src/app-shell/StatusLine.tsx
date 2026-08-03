@@ -1,0 +1,1 @@
+export function StatusLine({children,alert=false}:{children:string;alert?:boolean}){return <p className="statusline" role={alert?'alert':'status'} aria-live={alert?'assertive':'polite'}>{children}</p>}
