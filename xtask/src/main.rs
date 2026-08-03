@@ -16,7 +16,7 @@ Freeloader repository tasks
   cargo dev            Install what is missing, then open the native desktop app
   cargo xtask dev      The same thing, spelled out
   cargo xtask build    Bundle installers for this platform
-  cargo xtask check    Run the four gates CI runs
+  cargo xtask check    Run the workspace and frontend CI gates
   cargo xtask icons    Regenerate the bundle icons
 ";
 
@@ -153,7 +153,14 @@ fn check() -> Result<(), String> {
     step("cargo test --workspace");
     run(&cargo, &["test", "--workspace"], &root)?;
 
-    step("frontend typecheck and build");
+    step("frontend typecheck");
+    run(
+        "pnpm",
+        &["--dir", "apps/desktop", "run", "typecheck"],
+        &root,
+    )?;
+
+    step("frontend build");
     run("pnpm", &["--dir", "apps/desktop", "run", "build"], &root)
 }
 
