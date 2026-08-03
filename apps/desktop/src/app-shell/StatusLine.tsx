@@ -1,0 +1,1 @@
+export function StatusLine({children,role="status"}:{children:string;role?:"status"|"alert"}){return <p className="statusline" role={role} aria-live={role==="alert"?"assertive":"polite"}>{children}</p>;}
