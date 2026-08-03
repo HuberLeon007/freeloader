@@ -19,9 +19,9 @@ use sqlx::SqlitePool;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
-use uuid::Uuid;
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::watch;
+use uuid::Uuid;
 
 struct AppState {
     engine: DownloadEngine,
@@ -158,7 +158,9 @@ async fn add_download(
         while rx.changed().await.is_ok() {
             let prog = rx.borrow().clone();
             let now = std::time::Instant::now();
-            let due = last_emit.is_none_or(|prev| now.duration_since(prev) >= std::time::Duration::from_millis(200));
+            let due = last_emit.is_none_or(|prev| {
+                now.duration_since(prev) >= std::time::Duration::from_millis(200)
+            });
             if !due {
                 continue;
             }
@@ -178,9 +180,17 @@ async fn add_download(
     let output_directory = directory.clone();
     tauri::async_runtime::spawn(async move {
         let result = match SingleStreamDownloader::new(pool) {
-            Ok(downloader) => downloader
-                .download(&requested_url, &output_directory, &safe_filename, tx.clone(), cancel)
-                .await,
+            Ok(downloader) => {
+                downloader
+                    .download(
+                        &requested_url,
+                        &output_directory,
+                        &safe_filename,
+                        tx.clone(),
+                        cancel,
+                    )
+                    .await
+            }
             Err(error) => Err(error),
         };
         let _ = transfer_handle

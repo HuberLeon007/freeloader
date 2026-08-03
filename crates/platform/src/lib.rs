@@ -123,10 +123,7 @@ fn install_roots() -> Vec<PathBuf> {
         let drive = env::var_os("SystemDrive")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("C:"));
-        for fallback in [
-            "Program Files",
-            "Program Files (x86)",
-        ] {
+        for fallback in ["Program Files", "Program Files (x86)"] {
             let candidate = drive.join(fallback);
             if candidate.is_dir() && !roots.contains(&candidate) {
                 roots.push(candidate);
@@ -230,7 +227,10 @@ mod tests {
         let found = detect_browsers();
         for candidate in &found {
             assert_eq!(
-                found.iter().filter(|other| other.key == candidate.key).count(),
+                found
+                    .iter()
+                    .filter(|other| other.key == candidate.key)
+                    .count(),
                 1,
                 "duplicate entry for {}",
                 candidate.key
