@@ -1,0 +1,3 @@
+import { create } from 'zustand';
+export type Density='compact'|'comfortable'|'spacious'; type SettingsState={density:Density;concurrency:number;defaultDirectory:string;rememberPrompt:boolean;setDensity:(density:Density)=>void;setConcurrency:(value:number)=>void;setDefaultDirectory:(value:string)=>void;setRememberPrompt:(value:boolean)=>void};
+export const useSettingsStore=create<SettingsState>(set=>({density:'compact',concurrency:3,defaultDirectory:'',rememberPrompt:true,setDensity:density=>set({density}),setConcurrency:value=>set({concurrency:Math.max(1,Math.min(8,Math.round(value)))}),setDefaultDirectory:defaultDirectory=>set({defaultDirectory}),setRememberPrompt:rememberPrompt=>set({rememberPrompt})}));

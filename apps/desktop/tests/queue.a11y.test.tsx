@@ -1,0 +1,3 @@
+import { describe, expect, it } from 'vitest'; import { render, screen } from '@testing-library/react'; import { QueueTable } from '../src/features/queue/QueueTable';
+const item={id:'1',url:'https://example.com/a',name:'a',status:'downloading' as const,downloaded:42,total:100,destination:'/tmp/a',speed:2,error:null};
+describe('queue accessibility',()=>it('exposes table headers and progress',()=>{render(<QueueTable items={[item]} selectedIds={[]} onSelect={()=>{}} onSelectAll={()=>{}} onRemove={()=>{}}/>);expect(screen.getByRole('table')).toBeTruthy();expect(screen.getAllByRole('columnheader')).toHaveLength(7);expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow','42');}));
