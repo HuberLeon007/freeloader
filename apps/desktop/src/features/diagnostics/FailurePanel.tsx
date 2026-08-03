@@ -1,0 +1,1 @@
+export function FailurePanel({message,detail,onCopy}:{message:string;detail:string;onCopy:()=>void}){return <section role="alert" aria-labelledby="failure-title"><h2 id="failure-title">Download failed</h2><p>{message}</p><details><summary>Technical detail</summary><pre>{detail}</pre></details><button type="button" onClick={onCopy}>Copy technical detail</button></section>}

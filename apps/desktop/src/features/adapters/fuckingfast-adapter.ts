@@ -1,0 +1,2 @@
+import type { HostAdapter } from "./adapter-types";
+export const fuckingFastAdapter:HostAdapter={id:"fuckingfast",label:"fuckingfast.co",matches:url=>url.hostname==="fuckingfast.co"||url.hostname.endsWith(".fuckingfast.co"),async resolve({url,policy}){if(policy.cookiePolicy!=="refuse"||policy.credentialPolicy!=="refuse")throw new Error("Freeloader refuses cookies and credentials");return [{url,adapterId:"fuckingfast",metadata:{host:"fuckingfast.co"}}];}};

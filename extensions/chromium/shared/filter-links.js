@@ -1,0 +1,1 @@
+export function filterLinks(links, query=''){const seen=new Set();return links.filter(raw=>{try{const url=new URL(raw);if(url.protocol!=='http:'&&url.protocol!=='https:')return false;const key=url.toString();if(seen.has(key))return false;seen.add(key);return !query||key.toLowerCase().includes(query.toLowerCase());}catch{return false;}});}

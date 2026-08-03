@@ -1,0 +1,1 @@
+export function QueueActions({selected,onRemove,onClear}:{selected:number;onRemove:()=>void;onClear:()=>void}){return <div role="toolbar" aria-label="Queue actions"><button type="button" disabled={selected===0} onClick={onRemove}>Remove selected ({selected})</button><button type="button" onClick={onClear}>Clear selection</button></div>}

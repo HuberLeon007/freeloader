@@ -1,0 +1,2 @@
+import {describe,expect,it} from "vitest"; import {formatBytes,formatEta,formatSpeed,isKnownNumeric} from "../src/lib/format";
+describe("format helpers",()=>{it("uses an em dash for unknown eta",()=>expect(formatEta(null)).toBe("—"));it("formats bytes",()=>expect(formatBytes(1536)).toContain("1.5"));it("formats speed",()=>expect(formatSpeed(1024)).toBe("1.00 KB/s"));it("recognizes numeric values",()=>expect(isKnownNumeric("42")).toBe(true));});

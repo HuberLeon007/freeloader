@@ -1,0 +1,2 @@
+import { describe, expect, it } from 'vitest'; import { render, screen } from '@testing-library/react'; import { SettingsDialog } from '../src/features/settings/SettingsDialog';
+describe('settings accessibility',()=>it('has a named modal and controls',()=>{render(<SettingsDialog open density="compact" concurrency={3} onDensityChange={()=>{}} onConcurrencyChange={()=>{}} onClose={()=>{}}/>);expect(screen.getByRole('dialog',{name:'Settings'})).toBeTruthy();expect(screen.getByRole('button',{name:'Close settings'})).toBeTruthy();}));

@@ -1,0 +1,1 @@
+export function ConcurrencyControl({value,onChange}:{value:number;onChange:(value:number)=>void}){return <label>Concurrent downloads <input type="number" min={1} max={8} value={value} onChange={event=>onChange(Number(event.target.value))}/></label>}

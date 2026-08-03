@@ -1,0 +1,1 @@
+export function frameMessage(message){const bytes=new TextEncoder().encode(JSON.stringify(message));const result=new Uint8Array(4+bytes.length);new DataView(result.buffer).setUint32(0,bytes.length,true);result.set(bytes,4);return result;}
