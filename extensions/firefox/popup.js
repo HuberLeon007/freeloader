@@ -13,6 +13,6 @@ document.getElementById("scan").addEventListener("click", async () => {
   for (const url of urls.slice(0, 50)) {
     const item = document.createElement("li"); const label = document.createElement("label"); const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.checked = true;
     checkbox.addEventListener("change", () => { if (checkbox.checked) void browser.runtime.sendNativeMessage(HOST, { version: 1, type: "capture_download", payload: { url, suggestedFilename: null, referrer: tab.url || null, contentType: null, cookiesIncluded: false } }); });
-    label.append(checkbox, document.createTextNode(url)); item.append(item); list.append(item); checkbox.dispatchEvent(new Event("change"));
+    label.append(checkbox, document.createTextNode(url)); item.append(label); list.append(item); checkbox.dispatchEvent(new Event("change"));
   }
 });
