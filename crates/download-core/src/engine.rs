@@ -257,16 +257,18 @@ fn resolve_filename_from_url(url: &url::Url) -> String {
 )]
 mod tests {
     use super::*;
+    use crate::models::domain::Download;
     use crate::seams::{
         checksum::ChecksumVerifier,
         clock::{Clock, MonotonicInstant},
         filesystem::{FileSystem, FsError, LeafKind, PartFile},
         http::{ByteChunkStream, HttpClient, ResponseHead, TransportError},
         rate_limiter::RateLimiter,
-        repository::{DownloadRepository, RecordPatch, RepositoryError, ResourceMetadata, SettingKey},
+        repository::{
+            DownloadRepository, RecordPatch, RepositoryError, ResourceMetadata, SettingKey,
+        },
         strategy::{DownloadStrategy, TransferContext, TransferOutcome, TransferPlan},
     };
-    use crate::models::domain::Download;
     use async_trait::async_trait;
     use std::sync::Arc;
     use tokio::sync::watch;
@@ -277,8 +279,12 @@ mod tests {
     struct StubClock;
     #[async_trait]
     impl Clock for StubClock {
-        fn now(&self) -> time::OffsetDateTime { time::OffsetDateTime::now_utc() }
-        fn monotonic(&self) -> MonotonicInstant { MonotonicInstant::from_millis(0) }
+        fn now(&self) -> time::OffsetDateTime {
+            time::OffsetDateTime::now_utc()
+        }
+        fn monotonic(&self) -> MonotonicInstant {
+            MonotonicInstant::from_millis(0)
+        }
         async fn sleep(&self, _duration: std::time::Duration) {}
     }
 
@@ -301,30 +307,100 @@ mod tests {
     struct StubFs;
     #[async_trait]
     impl FileSystem for StubFs {
-        async fn create_dir_all(&self, _path: &std::path::Path) -> Result<(), FsError> { Ok(()) }
-        async fn canonicalize(&self, _path: &std::path::Path) -> Result<std::path::PathBuf, FsError> { unimplemented!() }
-        async fn len_of(&self, _path: &std::path::Path) -> Result<Option<u64>, FsError> { Ok(None) }
-        async fn symlink_probe(&self, _path: &std::path::Path) -> Result<LeafKind, FsError> { Ok(LeafKind::Missing) }
-        async fn create_new(&self, _path: &std::path::Path) -> Result<(), FsError> { Ok(()) }
-        async fn open_append(&self, _path: &std::path::Path) -> Result<Box<dyn PartFile>, FsError> { unimplemented!() }
-        async fn truncate(&self, _path: &std::path::Path, _len: u64) -> Result<(), FsError> { Ok(()) }
-        async fn rename(&self, _from: &std::path::Path, _to: &std::path::Path) -> Result<(), FsError> { Ok(()) }
-        async fn remove_file(&self, _path: &std::path::Path) -> Result<(), FsError> { Ok(()) }
+        async fn create_dir_all(&self, _path: &std::path::Path) -> Result<(), FsError> {
+            Ok(())
+        }
+        async fn canonicalize(
+            &self,
+            _path: &std::path::Path,
+        ) -> Result<std::path::PathBuf, FsError> {
+            unimplemented!()
+        }
+        async fn len_of(&self, _path: &std::path::Path) -> Result<Option<u64>, FsError> {
+            Ok(None)
+        }
+        async fn symlink_probe(&self, _path: &std::path::Path) -> Result<LeafKind, FsError> {
+            Ok(LeafKind::Missing)
+        }
+        async fn create_new(&self, _path: &std::path::Path) -> Result<(), FsError> {
+            Ok(())
+        }
+        async fn open_append(&self, _path: &std::path::Path) -> Result<Box<dyn PartFile>, FsError> {
+            unimplemented!()
+        }
+        async fn truncate(&self, _path: &std::path::Path, _len: u64) -> Result<(), FsError> {
+            Ok(())
+        }
+        async fn rename(
+            &self,
+            _from: &std::path::Path,
+            _to: &std::path::Path,
+        ) -> Result<(), FsError> {
+            Ok(())
+        }
+        async fn remove_file(&self, _path: &std::path::Path) -> Result<(), FsError> {
+            Ok(())
+        }
     }
 
     struct StubRepo;
     #[async_trait]
     impl DownloadRepository for StubRepo {
-        async fn insert(&self, _download: &Download) -> Result<(), RepositoryError> { Ok(()) }
-        async fn get(&self, _id: Uuid) -> Result<Option<Download>, RepositoryError> { Ok(None) }
-        async fn list(&self) -> Result<Vec<Download>, RepositoryError> { Ok(vec![]) }
-        async fn remove(&self, _id: Uuid) -> Result<(), RepositoryError> { Ok(()) }
-        async fn apply_transition(&self, _id: Uuid, _expected_from: crate::DownloadStatus, _to: crate::DownloadStatus, _patch: RecordPatch, _now: time::OffsetDateTime) -> Result<Download, RepositoryError> { unimplemented!() }
-        async fn record_flushed_offset(&self, _id: Uuid, _durable_offset: u64, _now: time::OffsetDateTime) -> Result<(), RepositoryError> { Ok(()) }
-        async fn save_metadata(&self, _id: Uuid, _metadata: &ResourceMetadata, _now: time::OffsetDateTime) -> Result<(), RepositoryError> { Ok(()) }
-        async fn quiesce_running(&self, _now: time::OffsetDateTime) -> Result<Vec<Uuid>, RepositoryError> { Ok(vec![]) }
-        async fn read_setting(&self, _key: SettingKey) -> Result<Option<String>, RepositoryError> { Ok(None) }
-        async fn write_setting(&self, _key: SettingKey, _value: &str, _now: time::OffsetDateTime) -> Result<(), RepositoryError> { Ok(()) }
+        async fn insert(&self, _download: &Download) -> Result<(), RepositoryError> {
+            Ok(())
+        }
+        async fn get(&self, _id: Uuid) -> Result<Option<Download>, RepositoryError> {
+            Ok(None)
+        }
+        async fn list(&self) -> Result<Vec<Download>, RepositoryError> {
+            Ok(vec![])
+        }
+        async fn remove(&self, _id: Uuid) -> Result<(), RepositoryError> {
+            Ok(())
+        }
+        async fn apply_transition(
+            &self,
+            _id: Uuid,
+            _expected_from: crate::DownloadStatus,
+            _to: crate::DownloadStatus,
+            _patch: RecordPatch,
+            _now: time::OffsetDateTime,
+        ) -> Result<Download, RepositoryError> {
+            unimplemented!()
+        }
+        async fn record_flushed_offset(
+            &self,
+            _id: Uuid,
+            _durable_offset: u64,
+            _now: time::OffsetDateTime,
+        ) -> Result<(), RepositoryError> {
+            Ok(())
+        }
+        async fn save_metadata(
+            &self,
+            _id: Uuid,
+            _metadata: &ResourceMetadata,
+            _now: time::OffsetDateTime,
+        ) -> Result<(), RepositoryError> {
+            Ok(())
+        }
+        async fn quiesce_running(
+            &self,
+            _now: time::OffsetDateTime,
+        ) -> Result<Vec<Uuid>, RepositoryError> {
+            Ok(vec![])
+        }
+        async fn read_setting(&self, _key: SettingKey) -> Result<Option<String>, RepositoryError> {
+            Ok(None)
+        }
+        async fn write_setting(
+            &self,
+            _key: SettingKey,
+            _value: &str,
+            _now: time::OffsetDateTime,
+        ) -> Result<(), RepositoryError> {
+            Ok(())
+        }
     }
 
     struct StubRateLimiter;
@@ -335,15 +411,30 @@ mod tests {
 
     struct StubChecksum;
     impl ChecksumVerifier for StubChecksum {
-        fn expected(&self) -> Option<&crate::seams::checksum::ChecksumSpec> { None }
-        fn verify(&self, _observed: &crate::seams::checksum::ChecksumSpec) -> crate::seams::checksum::ChecksumVerdict { crate::seams::checksum::ChecksumVerdict::NotVerified }
+        fn expected(&self) -> Option<&crate::seams::checksum::ChecksumSpec> {
+            None
+        }
+        fn verify(
+            &self,
+            _observed: &crate::seams::checksum::ChecksumSpec,
+        ) -> crate::seams::checksum::ChecksumVerdict {
+            crate::seams::checksum::ChecksumVerdict::NotVerified
+        }
     }
 
     struct StubStrategy;
     #[async_trait]
     impl DownloadStrategy for StubStrategy {
-        fn id(&self) -> &'static str { "stub" }
-        async fn execute(&self, _plan: TransferPlan, _context: TransferContext) -> Result<TransferOutcome, EngineError> { unimplemented!() }
+        fn id(&self) -> &'static str {
+            "stub"
+        }
+        async fn execute(
+            &self,
+            _plan: TransferPlan,
+            _context: TransferContext,
+        ) -> Result<TransferOutcome, EngineError> {
+            unimplemented!()
+        }
     }
 
     fn test_engine() -> DownloadEngine {
@@ -366,7 +457,11 @@ mod tests {
         let engine = test_engine();
         let id = Uuid::now_v7();
         let cancel = tokio_util::sync::CancellationToken::new();
-        let (tx, _rx) = watch::channel(Progress { id, downloaded: 0, total: None });
+        let (tx, _rx) = watch::channel(Progress {
+            id,
+            downloaded: 0,
+            total: None,
+        });
 
         engine.track(id, cancel.clone(), tx).await;
 
@@ -379,7 +474,11 @@ mod tests {
         let engine = test_engine();
         let id = Uuid::now_v7();
         let cancel = tokio_util::sync::CancellationToken::new();
-        let (tx, _rx) = watch::channel(Progress { id, downloaded: 0, total: None });
+        let (tx, _rx) = watch::channel(Progress {
+            id,
+            downloaded: 0,
+            total: None,
+        });
 
         engine.track(id, cancel, tx).await;
         engine.untrack(id).await;
@@ -394,7 +493,11 @@ mod tests {
         let id = Uuid::now_v7();
         let cancel = tokio_util::sync::CancellationToken::new();
         let child_token = cancel.child_token();
-        let (tx, _rx) = watch::channel(Progress { id, downloaded: 0, total: None });
+        let (tx, _rx) = watch::channel(Progress {
+            id,
+            downloaded: 0,
+            total: None,
+        });
 
         engine.track(id, cancel, tx).await;
 
@@ -416,7 +519,11 @@ mod tests {
         let engine = test_engine();
         let id = Uuid::now_v7();
         let cancel = tokio_util::sync::CancellationToken::new();
-        let (tx, _rx) = watch::channel(Progress { id, downloaded: 0, total: None });
+        let (tx, _rx) = watch::channel(Progress {
+            id,
+            downloaded: 0,
+            total: None,
+        });
 
         engine.track(id, cancel, tx).await;
 
@@ -437,7 +544,11 @@ mod tests {
         let engine = test_engine();
         let id = Uuid::now_v7();
         let cancel = tokio_util::sync::CancellationToken::new();
-        let (tx, _rx) = watch::channel(Progress { id, downloaded: 0, total: Some(100) });
+        let (tx, _rx) = watch::channel(Progress {
+            id,
+            downloaded: 0,
+            total: Some(100),
+        });
 
         engine.track(id, cancel, tx.clone()).await;
 
@@ -446,7 +557,11 @@ mod tests {
         assert_eq!(rx.borrow_and_update().downloaded, 0);
 
         // Send a progress update and verify the subscriber sees it.
-        let _ = tx.send(Progress { id, downloaded: 42, total: Some(100) });
+        let _ = tx.send(Progress {
+            id,
+            downloaded: 42,
+            total: Some(100),
+        });
         rx.changed().await.expect("must receive update");
         assert_eq!(rx.borrow_and_update().downloaded, 42);
     }
@@ -456,7 +571,11 @@ mod tests {
         let engine = test_engine();
         let id = Uuid::now_v7();
         let cancel = tokio_util::sync::CancellationToken::new();
-        let (tx, mut rx) = watch::channel(Progress { id, downloaded: 0, total: Some(100) });
+        let (tx, mut rx) = watch::channel(Progress {
+            id,
+            downloaded: 0,
+            total: Some(100),
+        });
 
         engine.track(id, cancel, tx.clone()).await;
         engine.untrack(id).await;
